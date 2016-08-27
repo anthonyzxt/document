@@ -59,3 +59,37 @@ Date:   Sat Aug 27 13:33:30 2016 +0800
 	1.撤销工作区的修改  
 		`git checkout -- file`  
 	其中`--`不能少，没有`--`，就变成了“切换到另一个分支”的命令
+- 撤销的两种情况
+	1. 自修改后还没有被放到暂存区，现在，撤销修改就回到和版本库一模一样的状态；
+	2. 已经添加到暂存区后，又作了修改，现在，撤销修改就回到添加到暂存区后的状态。  
+    实例：一个readme文件修改错了，但已经git到暂存区了。但在commit之前发现了这个问题。
+	执行git status看到已经到了暂存区了。  
+		<pre>$ git status
+		# On branch master
+		# Changes to be committed:
+		#   (use "git reset HEAD <file>..." to unstage)
+		#
+		#       modified:   readme.txt
+		#
+       </pre>
+	以上信息中，git提示我们`git reset HEAD file`可以把暂存区的修改撤销掉（unstage），重新放回工作区：  
+	    <pre>$ git reset HEAD readme.txt
+	Unstaged changes after reset:
+	M       readme.txt
+    	</pre>		
+	git reset命令既可以回退版本，也可以把暂存区的修改回退到工作区。当我们用HEAD时，表示最新的版本。再用git status查看一下，现在暂存区是干净的，工作区有修改：
+		<pre>$ git status
+		# On branch master		
+		# Changes not staged for commit:
+		#   (use "git add <file>..." to update what will be committed)
+		#   (use "git checkout -- <file>..." to discard changes in working directory)
+		#
+		#       modified:   readme.txt
+		#
+	no changes added to commit (use "git add" and/or "git commit -a")</pre>
+最后撤销工作区的修改即可：
+		<pre>$ git checkout -- readme.txt
+		$ git status
+		# On branch master
+		nothing to commit (working directory clean)
+		</pre>
