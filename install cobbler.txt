@@ -1,0 +1,82 @@
+#Cobbler安装文档#
+
+###基础环境的准备###
+* 系统版本
+   >\#cat /etc/redhat-release   
+CentOS Linux release 7.2.1511 (Core)  
+   >\#uname -r  
+3.10.0-327.el7.x86_64
+
+* 关闭防火墙和selinux
+   >\#systemctl stop firewalld  
+   >\#getenforce   
+Disabled   
+/* 如果selinux为enabled，请执行以下命令：  
+	`sed -i s#SELINUX=enforcing#SELINUX=disabled#g /etc/selinux/config`  
+
+* 确认本机提供cobbler服务网卡的IP地址
+>\# ip a|grep eth0|awk -F"[ /]+" 'NR==2{print $3}'  
+10.0.0.160  
+/* 我这里的IP是10.0.0.160，请根据实际情况确定提供服务的IP
+
+###Yum源和epel源的安装
+* 安装yum源  
+	`wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo` 
+* 安装epel源  
+	`wget -O /etc/yum.repos.d/epel.repo http://mirrors.aliyun.com/repo/epel-7.repo`
+
+###安装cobbler及其相关插件###
+1. 执行yum安装：  
+	`yum install cobbler cobbler-web pykickstart httpd tftp dhcp xinetd -y`
+2. 启动httpd服务和cobbler服务已经xinetd服务  
+	 `systemctl start httpd`    
+     `systemctl start xinetd`    
+     `systemctl start cobblerd`
+
+3. 执行cobbler check  
+	`cobbler check`
+4. 根据输出结果调试
+	<pre>
+1 : The 'server' field in /etc/cobbler/settings must be set to something other than localhost, or kickstarting features will not work.  This should be a resolvable hostname or IP for the boot server as reachable by all machines that will use it.
+2 : For PXE to be functional, the 'next_server' field in /etc/cobbler/settings must be set to something other than 127.0.0.1, and should match the IP of the boot server on the PXE network.
+3 : change 'disable' to 'no' in /etc/xinetd.d/tftp
+4 : some network boot-loaders are missing from /var/lib/cobbler/loaders, you may run 'cobbler get-loaders' to download them, or, if you only want to handle x86/x86_64 netbooting, you may ensure that you have installed a *recent* version of the syslinux package installed and can ignore this message entirely.  Files in this directory, should you want to support all architectures, should include pxelinux.0, menu.c32, elilo.efi, and yaboot. The 'cobbler get-loaders' command is the easiest way to resolve these requirements.
+5 : enable and start rsyncd.service with systemctl
+6 : debmirror package is not installed, it will be required to manage debian deployments and repositories
+7 : The default password used by the sample templates for newly installed machines (default_password_crypted in /etc/cobbler/settings) is still set to 'cobbler' and should be changed, try: "openssl passwd -1 -salt 'random-phrase-here' 'your-password-here'" to generate new one
+8 : fencing tools were not found, and are required to use the (optional) power management features. install cman or fence-agents to use them
+Restart cobblerd and then run 'cobbler sync' to apply changes.
+</pre>
+5. 根据第4步输出依次解决问题
+	1. 问题1和2的sever和next_server的IP修改，修改为基本环境中显示的IP，这里示例为10.0.0.160，请自行根据实际情况替换
+		<pre>sed -ir 's#server: 127.0.0.1#server: 10.0.0.160#g' /etc/cobbler/settings</pre>
+    2. 问题3的修改
+    	<pre>vim /etc/xinetd.d/tftp</pre>
+		将/etc/xinetd.d/tftp中的disable = yes 修改为no  
+	3. 问题4的修改  
+		执行 `cobbler get-loaders`  即可
+	4. 问题5的修改  
+		启动rsync服务即可 `systemctl enable rsyncd` 和 `systemctl start rsyncd`
+	5. 问题6的修改  
+		可以不修改，如果是安装ubantu或debian系统就按要求执行  
+		有强迫症可以选择：	`yum –y install debmirror` 然后根据错误进行解决,一般错误如下。注释/etc/dedmirror.conf文件中的  `@dists=”sid”;  @arches=”i386”`
+	6. 问题7的修改  
+		这个是设置系统安装好后的开机密码，执行openssl产生新的密码  
+		<pre>openssl passwd -1 -salt 'cobbler' 'cobbler'
+		$1$cobbler$M6SE55xZodWc9.vAKLJs6.
+		</pre>
+		替换掉模板中的密码：
+		<pre>sed -n '/default_password_crypted/p' /etc/cobbler/settings
+default_password_crypted: ** "$1$mF86/UHC$WvcIcX2t6crBz2onWxyac."** /*这里为模板自带密码
+sed -ir 's#$1$mF86/UHC$WvcIcX2t6crBz2onWxyac.#$1$cobbler$M6SE55xZodWc9.vAKLJs6.#gp' /etc/cobbler/settings</pre>
+	7. 问题8的电源管理的，如果想安装的就执行以下代码  
+		`yum –y install cman fence-agents`  
+	8. 基本配置修改完毕，重启检查
+		  <pre>systemctl restart cobblerd`  
+		cobbler check</pre>
+	9. 出现以下提示忽略则可。至此cobbler安装完成  
+		<pre>The following are potential configuration items that you may want to fix:
+1 : debmirror package is not installed, it will be required to manage debian deployments and repositories
+2 : fencing tools were not found, and are required to use the (optional) power management features. install cman or fence-agents to use them
+Restart cobblerd and then run 'cobbler sync' to apply changes.
+</pre>
