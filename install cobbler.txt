@@ -80,3 +80,111 @@ sed -ir 's#$1$mF86/UHC$WvcIcX2t6crBz2onWxyac.#$1$cobbler$M6SE55xZodWc9.vAKLJs6.#
 2 : fencing tools were not found, and are required to use the (optional) power management features. install cman or fence-agents to use them
 Restart cobblerd and then run 'cobbler sync' to apply changes.
 </pre>
+	10. 配置DHCP服务模板  
+	首先修改/etc/cobbler/setting中的 `manage_dhcp: 0`的值为 `manage_dhcp: 1`  
+	其次修改/etc/cobbler/dhcp.template文件,修改部分如下	
+		<pre>vi /etc/cobbler/dhcp.template  
+		subnet 10.0.0.0 netmask 255.255.255.0 {
+		         option routers             10.0.0.2;
+     		 option domain-name-servers 10.0.0.2;
+     		 option subnet-mask         255.255.255.0;
+     		 range dynamic-bootp        10.0.0.170 10.0.0.254;
+		</pre>
+###导入镜像文件###
+- 加载CDROM  
+	`mount /dev/cdrom /mnt`
+- 导入镜像文件，这里我们导入的Centos7的镜像文件  
+	`cobbler import --path=/mnt/ --name=Centos-7-x86_64 --arch=x86_64`
+###指定配置文件###
+- 配置文件如下，放入 `/var/lib/cobbler/kickstarts/` 下  
+<pre># cat CentOS-7-x86_64.cfg 
+#Kickstart Configurator for cobbler by Jason Zhao
+#platform=x86, AMD64, or Intel EM64T
+#System  language
+lang en_US
+#System keyboard
+keyboard us
+#Sytem timezone
+timezone Asia/Shanghai
+#Root password
+rootpw --iscrypted $default_password_crypted
+#Use text mode install
+text
+#Install OS instead of upgrade
+install
+#Use NFS installation Media
+url --url=$tree
+#System bootloader configuration
+bootloader --location=mbr
+#Clear the Master Boot Record
+zerombr
+#Partition clearing information
+clearpart --all --initlabel 
+#Disk partitioning information
+part /boot --fstype xfs --size 1024 --ondisk sda
+part swap --size 16384 --ondisk sda
+part / --fstype xfs --size 1 --grow --ondisk sda
+#System authorization infomation
+auth  --useshadow  --enablemd5 
+#Network information
+$SNIPPET('network_config')
+#network --bootproto=dhcp --device=em1 --onboot=on
+# Reboot after installation
+reboot
+#Firewall configuration
+firewall --disabled 
+#SELinux configuration
+selinux --disabled
+#Do not configure XWindows
+skipx
+#Package install information
+%pre
+$SNIPPET('log_ks_pre')
+$SNIPPET('kickstart_start')
+$SNIPPET('pre_install_network_config')
+# Enable installation monitoring
+$SNIPPET('pre_anamon')
+%end
+
+%packages
+@ base
+@ core
+sysstat
+iptraf
+ntp
+lrzsz
+ncurses-devel
+openssl-devel
+zlib-devel
+OpenIPMI-tools
+mysql
+nmap
+screen
+%end
+
+%post
+$yum_config_stanza
+systemctl disable postfix.service
+%end
+</pre>
+- 指定配置文件  
+	`cobbler profile edit --name=Centos-7-x86_64 --kickstart=/var/lib/cobbler/kickstarts/CentOS-7-x86_64.cfg `
+- 修改网卡配置参数  
+	`cobbler profile edit --name=Centos-7-x86_64 --kopts='net.ifnames=0 biosdevname=0'`
+###自定义Yum源###
+- 指定添加openstack yum源  
+	`cobbler repo add --name=openstack-mitaka --mirror=http://mirrors.aliyun.com/centos/7.2.1511/cloud/x86_64/openstack-mitaka/ --arch=x86_64 --breed=yum`     
+- 同步openstack源  
+    <pre>cobbler reposync
+	cobbler sync	
+	</pre>
+- 添加repo到指定的profile位置  
+	`cobbler profile edit --name=Centos-7-x86_64 --repos="openstack-mitaka"`
+###自定义装机###
+	cobbler system add --name=linux-node2 --mac="这里需修改为待装机系统的MAC"  --profile=Centos-7-x86_64 --ip-address=10.0.0.172 --subnet=255.255.255.0 --gateway=10.0.0.2 --interface=eth0 --static=1 --hostname=linux-node2 --name-servers=10.0.0.2 --kickstart=/var/lib/cobbler/kickstarts/Cobbler-CentOS-7.1-x86_64.cfg
+	
+###cobbler web访问###
+- 访问地址为: https://10.0.0.160/cobbler_web  
+	初始用户密码均为：cobbler
+- 如需修改密码，请执行以下命令  
+	例：`htdigest /etc/cobbler/users.digest "test" cobbler`			#”test”为用户描述,cobbler为用户名
