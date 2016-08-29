@@ -182,7 +182,7 @@ systemctl disable postfix.service
 	`cobbler profile edit --name=Centos-7-x86_64 --repos="openstack-mitaka"`
 ###自定义装机###
 	cobbler system add --name=linux-node2 --mac="这里需修改为待装机系统的MAC"  --profile=Centos-7-x86_64 --ip-address=10.0.0.172 --subnet=255.255.255.0 --gateway=10.0.0.2 --interface=eth0 --static=1 --hostname=linux-node2 --name-servers=10.0.0.2 --kickstart=/var/lib/cobbler/kickstarts/Cobbler-CentOS-7.1-x86_64.cfg
-	
+	cobbler sync
 ###cobbler web访问###
 - 访问地址为: https://10.0.0.160/cobbler_web  
 	初始用户密码均为：cobbler
