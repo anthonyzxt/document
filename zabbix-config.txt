@@ -1,0 +1,4 @@
+#zabbix监控部分#
+###自定义监控项###
+1. 创建主机组：configuration->Host groups->Create host group
+2. 
