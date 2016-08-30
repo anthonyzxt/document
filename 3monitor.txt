@@ -34,3 +34,40 @@
 - vmstat  
 	>vmstat 1 10 每1秒获取1次数据，共获取10次
 - mpstat
+##内存监控##
+内存 以页为单位，最小4kb  
+	1.寻址  
+	2.空间
+报警阀值 80%
+vmstat si so
+si 从交换分区到内存
+so 从内存到交换分区
+	
+##系统监控##
+硬盘  
+以块为单位  
+	IOPS IO's per second  
+	顺序IO
+	随机IO
+###监控工具###
+df -h  
+iotop(yum install -y iotop)  
+网络监控  
+- iftop查看带宽  
+站点联通测试  
+http://ce.cloud.360.cn/  
+####整体监控工具: nmon####
+nmon下载地址  
+[http://nmon.sourceforge.net/pmwiki.php?n=Site.Download](http://nmon.sourceforge.net/pmwiki.php?n=Site.Download)  
+	`nmon -c 10 -s 10 -f -m`  
+分析工具下载  
+[http://down.51cto.com/data/2128204](http://down.51cto.com/data/2128204)
+
+##应用监控##
+- nginxs示例状态页
+	<pre>location /nginx-status {
+	stub_status on;
+	access_log off;
+	allow 10.0.0.0/24;
+	deny all;
+	}</pre>

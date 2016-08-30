@@ -18,16 +18,17 @@ Disabled
 10.0.0.160  
 /* 我这里的IP是10.0.0.160，请根据实际情况确定提供服务的IP
 ###1.安装服务器端包###
-	<pre>rpm -ivh http://mirrors.aliyun.com/zabbix/zabbix/3.0/rhel/7/x86_64/zabbix-release-3.0-1.el7.noarch.rpm
+	rpm -ivh http://mirrors.aliyun.com/zabbix/zabbix/3.0/rhel/7/x86_64/zabbix-release-3.0-1.el7.noarch.rpm
 	yum clean all	
 	yum install -y zabbix-server-mysql zabbix-web-mysql zabbix-agent mariadb-server
-	</pre>
+	
 ###2.启动数据库###
 	systemctl enable mariadb
 	systemctl start mariadb
 ###3.创建数据库###
 	cd /usr/share/doc/zabbix-server-mysql-3.0.4/
 	gunzip create.sql.gz
+	mysql
 	mysql> create database zabbix character set utf8 collate utf8_bin;
 	mysql> grant all on zabbix.* to zabbix@localhost identified by '123456';
 	mysql -uzabbix -p123456 zabbix < create.sql
@@ -36,7 +37,7 @@ Disabled
 	DBHost=localhost
 	DBUser=zabbix  
 	DBPassword=123456
-	systemctl restart mariadb
+	systemctl restart zabbix-server
 ###5.修改http配置文件###
 	vim /etc/httpd/conf.d/zabbix.conf
 	php_value date.timezone Asia/Shanghai 
@@ -49,3 +50,4 @@ Disabled
 	http://server-ip/zabbix
 	user:Admin
 	Passwd:zabbix
+\#Configuration file "/etc/zabbix/web/zabbix.conf.php" created.

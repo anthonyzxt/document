@@ -93,6 +93,26 @@ Date:   Sat Aug 27 13:33:30 2016 +0800
 		# On branch master
 		nothing to commit (working directory clean)
 		</pre>
+
+
+##删除文件##
+当工作区和版本库不一致的时候，`git status`就会告诉我们如何操作，其中一条就是`git rm`
+	<pre>$ git status
+	# On branch master
+	# Changes not staged for commit:
+	#   (use "git add/rm <file>..." to update what will be committed)
+	#   (use "git checkout -- <file>..." to discard changes in working directory)
+	#
+	#       deleted:    test.txt
+	#
+	no changes added to commit (use "git add" and/or "git commit -a")	</pre>
+删除的2个选择：  
+1. 确实要从版本库中删除，执行以下2个命令：
+	<pre>git rm file
+git commit -m "shuoming"</pre>
+于是文件便从版本库删除了。  
+2. 是删除错文件了，从版本库恢复到工作区  
+	`$ git checkout -- test.txt`
 ##远程仓库##
 - 添加远程仓库  
 	1. 首先在服务github上添加ssh的公钥。
@@ -104,4 +124,6 @@ Date:   Sat Aug 27 13:33:30 2016 +0800
 	3. 从现在起，只要本地作了提交，就可以通过命令  
 	`git push origin master`
 把本地master分支的最新修改推送至GitHub
+- 从远程库clone到本地库
+	`$ git clone git@github.com:anthonyzxt/document.git`
 ##分支管理##
