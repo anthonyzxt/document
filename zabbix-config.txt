@@ -1,4 +1,23 @@
 #zabbix监控部分#
 ###自定义监控项###
 1. 创建主机组：configuration->Host groups->Create host group
-2. 
+	>Macros设置snmp时注意，{$SNMP_COMMUNITY}=valuer(),其中value的值为/etc/snmp/snmp.conf中设置的名称  
+2. Host inventory(主机资产)自动的开启  
+3. 添加聚合图形/screens
+	>Monittoring->create screen->进入打新增的screen里边->edit screen->change  
+4. 自定义监控项的添加  
+	>4.1 放在此目录下：/etc/zabbix/zabbix-agentd.d，以nginx为例：
+	><pre>vi /etc/zabbix/zabbix-agentd.d/UseP_nginx.conf
+	>UserParameter=nginx.ping,/usr/bin/curl -s "http://10.0.0.160:8080/nginx-status"|awk 'NR==1{print $NF}'
+	>zabbix_get -s 127.0.0.1 -p 10050 -k "nginx.ping" 1</pre>
+	>4.2 创建监控项  
+	>configuration->hosts->Items->Create Items->add:  
+	>其中Name和Key的名字最好一样，update interval的值建议不小于60s  
+	>Custom intervals #可以按时间段来设置监测时长  
+	>History storage period #历史数据存储天数  
+	>Trend storage period #趋势图保存多久  
+	>Description #最好填写
+5. 添加图形监控  
+	>Configuration->hosts->Graphs->Create Graphs->输入相关信息后点add。  
+	>测试：  
+	>`ab -c 10 -n 1000000 http://10.0.0.160:8080/` 

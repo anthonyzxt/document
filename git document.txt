@@ -126,4 +126,6 @@ git commit -m "shuoming"</pre>
 把本地master分支的最新修改推送至GitHub
 - 从远程库clone到本地库
 	`$ git clone git@github.com:anthonyzxt/document.git`
+- 从远程更新到本地  
+	`git pull origin master`
 ##分支管理##
