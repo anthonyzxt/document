@@ -1,0 +1,20 @@
+#MySQL部分#
+
+##数据库管理##
+###备份与恢复###
+- 备份命令
+	>mysqldump  
+	>mysqlhotcoy   # 只适合myisam引擎
+- 部分参数
+	>--flush-logs，-F  
+	>\# 刷新MySQL服务器日志文件。该选项要求RELOAD权限。请注意如果结合--all--database(或-A)选项使用该选项，根据每个转储的数据库刷新日志。例外情况是当使用--lock-all-tables或--master-data的时候：在这种情况下，日志只刷新一次，在所有 表被锁定后刷新。如果你想要同时转储和刷新日志，应使用--flush-logs连同--lock-all-tables或--master-data。  
+	>--lock-all-tables，-x  
+	>\# 所有数据库中的所有表加锁。在整体转储过程中通过全局读锁定来实现。该选项自动关闭--single-transaction和--lock-tables  
+	> --master-data[=value]  
+	>\# 该选项将二进制日志的位置和文件名写入到输出中。如果该选项值等于1，位置和文件名被写入CHANGE MASTER语句形式的转储输出，如果你使用该SQL转储主服务器以设置从服务器，从服务器从主服务器二进制日志的正确位置开始。如果选项值等于2，CHANGE MASTER语句被写成SQL注释。如果value被省略，这是默认动作   
+	>--single-transaction  
+	>\# 使用该选项时，应记住只有InnoDB表能以一致的状态被转储,使用该选项时任何转储的MyISAM或HEAP表仍然可以更改状态。  
+	>--opt  
+	>\# 选项是速记；等同于指定 --add-drop-tables--add-locking --create-option --disable-keys--extended-insert --lock-tables --quick --set-charset。它可以给出很快的转储操作并产生一个可以很快装入MySQL服务器的转储文件。该选项默认开启，但可以用--skip-opt禁用。要想只禁用确信用-opt启用的选项，使用--skip形式；例如，--skip-add-drop-tables或--skip-quick。
+
+	
