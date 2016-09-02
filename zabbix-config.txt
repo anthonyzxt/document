@@ -47,5 +47,35 @@
 4. 动作(Action)设置
 添加完成后确认权限分配。
 ##生产案例实战##
-
-	
+###项目规划（可画出架构图）###  
+	>主机分组    
+	>1. 交换机  
+	>2. Nginx  
+	>3. Tomcat  
+	>4. Mysql  
+	>监控对象识别  
+	>1. 使用SNMP监控交换机  
+	>2. 使用IPMI监控服务器硬件  
+	>3. 使用Agent监控服务器  
+	>4. 使用JMX监控Java  
+	>5. 监控MySQL  
+	>6. 监控Web状态  
+	>7. 监控Nginx状态
+###交换机上开始SNMP协议###
+1. 交换机上开启snmp
+	>config t
+	>snmp-server community public ro
+	>end
+2. snmp上添加监控
+	>configuration->host:注意设置macro（宏）为
+	>`{$SNMP_COMMUNITY}=valuer()`
+3. 模板添加，选择SNMP模板即可
+###IPMI监控###
+建议使用自定义item，本地执行ipmi命令来获取数据
+###JVM监控###
+通过zabbix java gateway来监控，相关资料：  
+	[https://www.zabbix.com/documentation/3.0/manual/concepts/java](https://www.zabbix.com/documentation/3.0/manual/concepts/java)
+zabbix-Java-gateway的安装  
+	`yum install -y zabbix-java-gateway java-1.8.0`  
+命令不全功能  
+	`yum install -y bash-completion`
