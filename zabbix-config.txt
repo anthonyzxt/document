@@ -70,12 +70,12 @@
 	>configuration->host:注意设置macro（宏）为
 	>`{$SNMP_COMMUNITY}=valuer()`
 3. 模板添加，选择SNMP模板即可
-###IPMI监控###
+##zabbix-IPMI监控##
 建议使用自定义item，本地执行ipmi命令来获取数据
-###JVM监控###
+##zabbix-JVM监控##
 通过zabbix java gateway来监控，相关资料：  
 [https://www.zabbix.com/documentation/3.0/manual/concepts/java](https://www.zabbix.com/documentation/3.0/manual/concepts/java)  
-
+####zabbix server端配置####
 1. zabbix-Java-gateway的安装    
 	`yum install -y zabbix-java-gateway java-1.8.0`  
 
@@ -85,12 +85,13 @@
 3. 启动  
 	`systemctl start zabbix-java-gateway.service`      
      	  
-4. zabbix-server指定java-gateway位置  
+4. zabbix-server指定 `java-gateway` 位置：  
 	`vi /etc/zabbix/zabbix_server.conf`  
-	将 `219 # JavaGateway=` 修改为 `JavaGateway=10.0.0.160`  
+	将 `# JavaGateway=` 修改为 `JavaGateway=10.0.0.160`  
 	将 `# StartJavaPollers=0` 修改一个值：`StartJavaPollers=0` ，# 启动几个进程轮询，查询java应用  
 	重启启动zabbix服务进程 `systemctl restart zabbix-server.service `
-5. 开启待监控的tomcat主机远程功能  
+5. 远程主机配置：  
+开启待监控的tomcat主机远程功能  
 	<pre>
 	vi /usr/local/tomcat/bin/catalina.sh
 	CATALINA_OPTS="$CATALINA_OPTS -Dcom.sun.management.jmxremote
@@ -98,5 +99,11 @@
 	-Dcom.sun.management.jmxremote.ssl=false
 	-Dcom.sun.management.jmxremote.authenticate=false
 	-Djava.rmi.server.hostname=10.0.0.172"
+	# hosname=ipw为远程主机ip
+	启动远程主机tomcat服务：
+	/usr/local/tomcat/bin/startup.sh
 	</pre>
-
+6. zabbix-web添加JVM的监控  
+	>configuration->hosts->选择主机->添加JMX监控—>模板选择通用模板即可  
+##zabbix-nginx监控##
+1. 确实nginx服务开启
