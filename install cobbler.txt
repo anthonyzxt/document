@@ -19,6 +19,9 @@ Disabled
 10.0.0.160  
 /* 我这里的IP是10.0.0.160，请根据实际情况确定提供服务的IP
 
+- 命令补全功能  
+	`yum install -y bash-completion`
+
 ###Yum源和epel源的安装
 * 安装yum源  
 	`wget -O /etc/yum.repos.d/CentOS-Base.repo http://mirrors.aliyun.com/repo/Centos-7.repo` 
