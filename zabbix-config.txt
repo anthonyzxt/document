@@ -106,4 +106,152 @@
 6. zabbix-web添加JVM的监控  
 	>configuration->hosts->选择主机->添加JMX监控—>模板选择通用模板即可  
 ##zabbix-nginx监控##
-1. 确实nginx服务开启
+流程：  
+1. 确实nginx服务开启  
+2. 编写脚本进行数据采集    
+	2.1 采集脚本
+	<pre>
+	#!/bin/bash
+	############################################################
+	# $Name:         zabbix_linux_plugins.sh
+	# $Version:      v1.0
+	# $Function:     zabbix plugins
+	# $Author:       Jason Zhao
+	# $organization: www.unixhot.com
+	# $Create Date:  2014-08-10
+	# $Description:  Monitor Linux Service Status
+	############################################################
+	tcp_status_fun(){
+		TCP_STAT=$1
+		#netstat -n | awk '/^tcp/ {++state[$NF]} END {for(key in state) print key,state[key]}' > /tmp/netstat.tmp
+		ss -ant | awk 'NR>1 {++s[$1]} END {for(k in s) print k,s[k]}' > /tmp/netstat.tmp
+		TCP_STAT_VALUE=$(grep "$TCP_STAT" /tmp/netstat.tmp | cut -d ' ' -f2)
+		if [ -z $TCP_STAT_VALUE ];then
+			TCP_STAT_VALUE=0
+		fi
+		echo $TCP_STAT_VALUE
+	}
+	nginx_status_fun(){
+		NGINX_PORT=$1
+		NGINX_COMMAND=$2
+		nginx_active(){
+	        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Active' | awk '{print $NF}'
+	        }
+		nginx_reading(){
+	        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Reading' | awk '{print $2}'
+	       }
+		nginx_writing(){
+	        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Writing' | awk '{print $4}'
+	       }
+		nginx_waiting(){
+	        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Waiting' | awk '{print $6}'
+	       }
+		nginx_accepts(){
+	        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| awk NR==3 | awk '{print $1}'++
+	       }
+		nginx_handled(){
+	        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| awk NR==3 | awk '{print $2}'
+	       }
+		nginx_requests(){
+	        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| awk NR==3 | awk '{print $3}'
+	       }
+	  	case $NGINX_COMMAND in
+			active)
+				nginx_active;
+				;;
+			reading)
+				nginx_reading;
+				;;
+			writing)
+				nginx_writing;
+				;;
+			waiting)
+				nginx_waiting;
+				;;
+			accepts)
+				nginx_accepts;
+				;;
+			handled)
+				nginx_handled;
+				;;
+			requests)
+				nginx_requests;
+			esac 
+	}
+	memcached_status_fun(){
+		M_PORT=$1
+		M_COMMAND=$2
+		echo -e "stats\nquit" | nc 127.0.0.1 "$M_PORT" | grep "STAT $M_COMMAND " | awk '{print $3}'
+	}
+	redis_status_fun(){
+		R_PORT=$1
+		R_COMMAND=$2
+		(echo -en "INFO \r\n";sleep 1;) | nc 127.0.0.1 "$R_PORT" > /tmp/redis_"$R_PORT".tmp
+		REDIS_STAT_VALUE=$(grep ""$R_COMMAND":" /tmp/redis_"$R_PORT".tmp | cut -d ':' -f2)
+	 	echo $REDIS_STAT_VALUE	
+	}
+	main(){
+		case $1 in
+			tcp_status)
+				tcp_status_fun $2;
+				;;
+			nginx_status)
+				nginx_status_fun $2 $3;
+				;;
+			memcached_status)
+				memcached_status_fun $2 $3;
+				;;
+			redis_status)
+				redis_status_fun $2 $3;
+				;;
+			*)
+				echo $"Usage: $0 {tcp_status key|memcached_status key|redis_status key|nginx_status key}"
+		esac
+	}
+	main $1 $2 $3</pre>
+	2.2 修改agentd文件：
+	<pre>
+	vi /etc/zabbix/zabbix_agentd.conf
+	Include=/etc/zabbix/zabbix_agentd.d/*.conf</pre>
+	2.3重启服务
+	</pre>
+	Nginx修改：
+	<pre>location /nginx_status {
+        stub_status on;
+        access_log off;
+        allow 127.0.0.1;
+        deny all;
+        }</pre>
+3. 这是用户自定义参数  
+`UserParameter=linux_status[*],/etc/zabbix/zabbix_agentd.d/zabbix_linux_plugin.sh "$1" "$2" "$3"`
+4. 重启zabbix-agent  
+	`systemctl restart zabbix-agent`  
+4.1 测试：
+	<pre>#zabbix_get -s 10.0.0.160 -k linux_status[nginx_status,8080,active]
+	1</pre>   
+5. 添加item  
+步骤：  
+`configuration` -> `Template` -> `Create Template` ;进入创建好的模板中，添加新的 `items`，这里是监控Nginx的键值主要有一下7个：
+	<pre>linux_status[nginx_status,8080,accepts]
+linux_status[nginx_status,8080,active]
+linux_status[nginx_status,8080,handled]
+linux_status[nginx_status,8080,reading]
+linux_status[nginx_status,8080,requests]
+linux_status[nginx_status,8080,waiting]
+linux_status[nginx_status,8080,writing]</pre>
+6. 创建图形   
+	步骤：  
+`configuration` -> `graphs(图形)` -> `Create graphs`,监控项中添加以下4项：
+	<pre>linux_status[nginx_status,8080,active]
+linux_status[nginx_status,8080,reading]
+linux_status[nginx_status,8080,waiting]
+linux_status[nginx_status,8080,writing]</pre>
+在主机中添加该模板  
+7. 创建触发器  
+8. 创建模板
+>模板创建见步骤5
+##Nignx-TCP监控及添加触发器##
+1. 导入TCP模板
+2. 相应主机添加模板
+3. 增加触发器
+	>1. 增加某台主机的触发器： `configuration`-> `hosts` -> `相应主机的Triggers` -> `Create Triggers`
