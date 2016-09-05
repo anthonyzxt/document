@@ -255,3 +255,82 @@ linux_status[nginx_status,8080,writing]</pre>
 2. 相应主机添加模板
 3. 增加触发器
 	>1. 增加某台主机的触发器： `configuration`-> `hosts` -> `相应主机的Triggers` -> `Create Triggers`
+##zabbix-告警通知##
+1. 告警脚本存放位置
+	<pre>cd /usr/lib/zabbix/alterscripts
+	cat pymail.py 
+	#!/usr/bin/python
+	#coding: utf-8  
+	import smtplib  
+	import sys
+	from email.mime.text import MIMEText  
+	from email.header import Header  
+	from email.Utils import COMMASPACE
+	  
+	receiver = sys.argv[1]
+	subject = sys.argv[2]
+	mailbody =  sys.argv[3]
+	smtpserver = 'smtp.exmail.qq.com'  
+	username = 'username'  
+	password = 'password'  
+	sender = username
+	  
+	msg = MIMEText(mailbody,'html','utf-8')#中文需参数‘utf-8’，单字节字符不需要  
+	msg['Subject'] = Header(subject, 'utf-8')  
+	msg['From'] = username
+	msg['To'] = receiver
+	  
+	smtp = smtplib.SMTP()  
+	smtp.connect(smtpserver)  
+	smtp.login(username, password)  
+	smtp.starttls()
+	smtp.sendmail(msg['From'], msg['To'], msg.as_string())  
+	smtp.quit()</pre>
+2. 脚本要支持三个参数：a.收件人 b.主机 c.内容
+3. 执行权限
+4. web界面添加
+5. 修改Actions
+>这里添加的时候注意修改发送邮件内容  
+>简单测试脚本
+><pre>vi sms.sh
+>#!/bin/bash
+>ALTER_TO=$1
+>ALTER_TITLE=$2
+>ALTER_BODY=$3
+>
+>echo $ALTER_TO >> /tmp/sms.log
+>echo $ALTER_TITLE >> /tmp/sms.log
+>echo $ALTER_BODY >> /tmp/sms.log
+></pre>
+##zabbix-mysql的监控##
+- 监控插件Percona  
+[https://www.percona.com/doc/percona-monitoring-plugins/1.1/zabbix/index.html](https://www.percona.com/doc/percona-monitoring-plugins/1.1/zabbix/index.html)
+- yum安装  
+	`yum install percona-zabbix-templates php php-mysql`
+- 主要监控流程
+	>- php脚本数据采集  
+	><pre>ls /var/lib/zabbix/percona/templates/
+	zabbix_agent_template_percona_mysql_server_ht_2.0.9-sver1.1.6.xml</pre>  
+	>- shell调用这个php
+	><pre>ls /var/lib/zabbix/percona/scripts/
+	get_mysql_stats_wrapper.sh</pre>
+	>- zabbix配置文件
+	><pre>cp /var/lib/zabbix/percona/scripts/ss_get_mysql_stats.php{,.cnf} 
+	ls /var/lib/zabbix/percona/scripts/
+	ss_get_mysql_stats.php.cnf</pre>
+	>- zabbix模版文件
+	><pre>ls /var/lib/zabbix/percona/templates/
+	userparameter_percona_mysql.conf
+	vi /var/lib/zabbix/percona/scripts/ss_get_mysql_stats.php.cnf      
+	\<\?php		
+	$mysql_user = 'root';
+	$mysql_pass = '';</pre>
+	>- 创建数据库专用监控用户
+
+##zabbix-web监控##
+步骤：
+1. `Configuration`->`Hostslinux-node2`-> 选择主机 `linux-node2`->`web`->`create web scebarios`；在创建步骤里的`steps`里边，一般选`Status codes`来报警  
+2. web监控默认没有触发器，需自己添加触发器。附实用报警内容设置：
+<pre>主旨部分：状态:{TRIGGER.STATUS}
+内容部分： 主机:{HOST.NAME1}监控项:{ITEM.KEY1}:{ITEM.VALUE1}
+</pre>
