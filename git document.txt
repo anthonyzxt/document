@@ -129,3 +129,24 @@ git commit -m "shuoming"</pre>
 - 从远程更新到本地  
 	`git pull origin master`
 ##分支管理##
+###分支的创建和删除###
+1. 分支的创建  
+	`git checkout -b dev`  
+	git checkout命令加上-b参数表示创建并切换，相当于以下两条命令:
+	<pre>$ git branch dev
+$ git checkout dev
+	</pre>
+2. 查看当前分支  
+	`$ git branch`  
+	当前分支前面会标一个`*`号,然后可以在分支上进行其它的日常工作`git add`等任务
+3. 分支的工作完成，切换会master分支
+	`$ git checkout master`
+4. 合并分支  
+	`$ git merge dev`  
+	就是直接把master指向dev的当前提交
+5. 分支的删除  
+合并完成后，分支没有什么用的话，就可以删除了。用以下命令：
+	`$ git branch -d dev`  
+###解决冲突###
+当Git无法自动合并分支时，就必须首先解决冲突。解决冲突后，再提交，合并完成。  
+用`git log --graph`命令可以看到分支合并图
