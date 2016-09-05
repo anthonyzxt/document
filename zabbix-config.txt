@@ -223,7 +223,7 @@
         deny all;
         }</pre>
 3. 这是用户自定义参数  
-`UserParameter=linux_status[*],/etc/zabbix/zabbix_agentd.d/zabbix_linux_plugin.sh "$1" "$2" "$3"`
+	`UserParameter=linux_status[*],/etc/zabbix/zabbix_agentd.d/zabbix_linux_plugin.sh "$1" "$2" "$3"`
 4. 重启zabbix-agent  
 	`systemctl restart zabbix-agent`  
 4.1 测试：
@@ -328,9 +328,65 @@ linux_status[nginx_status,8080,writing]</pre>
 	>- 创建数据库专用监控用户
 
 ##zabbix-web监控##
-步骤：
-1. `Configuration`->`Hostslinux-node2`-> 选择主机 `linux-node2`->`web`->`create web scebarios`；在创建步骤里的`steps`里边，一般选`Status codes`来报警  
+步骤：  
+1. `Configuration`->`Hosts`->`linux-node2`-> 选择主机 `linux-node2`->`web`->`create web scebarios`；在创建步骤里的`steps`里边，一般选`Status codes`来报警  
 2. web监控默认没有触发器，需自己添加触发器。附实用报警内容设置：
 <pre>主旨部分：状态:{TRIGGER.STATUS}
 内容部分： 主机:{HOST.NAME1}监控项:{ITEM.KEY1}:{ITEM.VALUE1}
 </pre>
+##zabbix监控模式##
+实际生产面临问题：  
+监控主机多，性能跟不上，延迟大
+多机房，防火墙  
+zabbix可以轻松解决，nagios不太好解决  
+
+- 针对Agent：  
+	>1. 被动模式(默认)  
+	>2. 主动模式
+	>queue里大量延时时或当监控主机超过300+时，建议采用主动模式。主动模式需修改的配置：zabbix_agentd.conf
+	><pre>startagents=0
+	>ServerActiver=本机IP
+	>Hostname=本机主机名</pre>
+	>屏蔽掉 `Server=本机IP`
+	>3. 模板的修改
+	>  clone模板，全部选中，mass update，type:zabbix agent(active)
+###zabbix Proxy###
+
+>运行模式：zabbix-server -> zabbix proxy(本地存有数据) ->zabbix agent    
+
+不能安装在同一台服务器上，要有数据库支持。  
+
+- yum安装
+	<pre>yum install -y zabbix-proxy zabbix-mysql mariadb-server</pre>
+- 启动数据库
+	<pre>systemctl start mariadb.service</pre>
+- 配置数据库
+	<pre>create database zabbix_proxy character set utf8;
+	grant all on zabbix_proxy.* to zabbix_proxy@localhost identified by "zabbix_proxy";
+	</pre>
+- 导入zabbix-proxy数据库
+	<pre>cd  /usr/share/doc/zabbix-proxy-mysql-3.0.4/
+	# ls
+	AUTHORS  ChangeLog  COPYING  NEWS  README  schema.sql.gz
+	zcat schema.sql.gz |mysql -uzabbix_proxy -p zabbix_proxy
+	</pre>
+- 修改proxyd服务端配置文件
+	<pre>vi /etc/zabbix/zabbix_proxy.conf
+	Server=10.0.0.160
+	Hostname=Zabbix-proxy
+	LogFile=/var/log/zabbix/zabbix_proxy.log
+	LogFileSize=0
+	PidFile=/var/run/zabbix/zabbix_proxy.pid
+	DBHost=localhost
+	DBName=zabbix_proxy
+	DBUser=zabbix_proxy
+	DBPassword=zabbix_proxy
+	SNMPTrapperFile=/var/log/snmptrap/snmptrap.log
+	Timeout=4
+	ExternalScripts=/usr/lib/zabbix/externalscripts
+	LogSlowQueries=3000	
+	</pre>
+- 修改客户端配置文件
+		
+- web页面添加代理
+	Administrator->proxies->create proxy
