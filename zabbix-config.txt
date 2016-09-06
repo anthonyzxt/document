@@ -408,4 +408,22 @@ zabbix可以轻松解决，nagios不太好解决
 	2.3 `operations` -> `add host,host groups,template`等，其它的看情况添加
 ###主动发现###
 1. 自动发现discover  
-2. zabbix api
+2. zabbix api  
+	2.1 获取token
+	<pre>curl -s -X POST http://10.0.0.160/zabbix/api_jsonrpc.php -H 'Content-Type: application/json-rpc' -d '
+	{
+    "jsonrpc": "2.0",
+    "method": "user.login",
+    "params": {
+        "user": "Admin",
+        "password": "zabbix"
+        },
+    "id": 1
+	}' | python -m json.tool
+	</pre>
+	2.2 结果
+	<pre>{
+    "id": 1,
+    "jsonrpc": "2.0",
+    "result": "a092ecc29a22ac4fe601837d4c4cc9b0"
+	}</pre>
