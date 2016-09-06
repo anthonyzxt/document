@@ -387,6 +387,25 @@ zabbix可以轻松解决，nagios不太好解决
 	LogSlowQueries=3000	
 	</pre>
 - 修改客户端配置文件
-		
 - web页面添加代理
-	Administrator->proxies->create proxy
+	Administrator->proxies->create proxy->设置为active模式
+##zabbix自动化监控##
+- 自动化方式：  
+	1. 自动注册
+	2. 主动发现
+###自动注册###
+1. 客户端zabbix agent的修改  
+	<pre>vi /etc/zabbix/zabbix_agentd.conf
+	ServerActive="zabbix server IP"
+	Hostname="FQDN"
+	# HostMetadata 为手动设置元字符（特征码，下同）
+	HostMetadataItem=system.uname  # HostMetadataItem这里有2种为自定义主机元字符,自动获取
+	systemctl restart zabbix-agent		
+	</pre>
+2. zabbix web设置  
+	2.1 `configuration` -> `Actions` -> `auto registration` -> `Create action`  
+	2.2 `conditions` -> `Host metadata like Linux`  
+	2.3 `operations` -> `add host,host groups,template`等，其它的看情况添加
+###主动发现###
+1. 自动发现discover  
+2. zabbix api
