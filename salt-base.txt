@@ -1,0 +1,29 @@
+#saltstack#
+
+- 三大功能
+	- 远程执行
+	- 配置管理
+	- 云管理
+- 官网
+	- 用户组 [http://www.saltstack.cn/](http://www.saltstack.cn/)
+	- 正式官网 [http://www.saltstack.com/](http://www.saltstack.com/)  
+- 四种运行方式
+	- Local
+	- Minion / Master
+	- syndic(代理模式)
+	- salt ssh
+- 官方仓库
+	- [http://repo.saltstack.com/](http://repo.saltstack.com/)
+- 安装
+	- yum安装repo仓
+	<pre>yum install https://repo.saltstack.com/yum/redhat/salt-repo-latest-1.el7.noarch.rpm -y</pre>
+	- salt-master的安装
+	<pre>yum install salt-master -y</pre>
+	- 客户端安装
+	<pre>yum install salt-minion -y</pre>
+	- 其他
+	<pre>yum install salt-ssh -y
+	yum install salt-syndic -y
+	yum install salt-cloud -y
+	yum install salt-api -y
+	</pre>
