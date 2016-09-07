@@ -421,9 +421,51 @@ zabbix可以轻松解决，nagios不太好解决
     "id": 1
 	}' | python -m json.tool
 	</pre>
-	2.2 结果
+	token结果:
 	<pre>{
     "id": 1,
     "jsonrpc": "2.0",
     "result": "a092ecc29a22ac4fe601837d4c4cc9b0"
 	}</pre>
+	2.2 示例1:获取主机ID
+	<pre>curl -s -X POST http://10.0.0.160/zabbix/api_jsonrpc.php -H 'Content-Type: application/json-rpc' -d '
+	{
+    "jsonrpc": "2.0",
+    "method": "host.get",
+    "params": {
+        "output": ["hostid"]	# host 获取主机名
+        },
+    "auth": "f9a95a8fc2c7d22906e1d37b91ed1915",
+    "id": 1
+	}' | python -m json.tool</pre>
+	结果：
+	<pre>{
+	    "id": 1,
+	    "jsonrpc": "2.0",
+	    "result": [
+	        {
+	            "hostid": "10109"
+	        },
+	        {
+	            "hostid": "10110"
+	        }
+	    ]
+	}</pre>
+	2.3 示例2：获取模版（template）
+	<pre>curl -s -X POST http://10.0.0.160/zabbix/api_jsonrpc.php -H 'Content-Type: application/json-rpc' -d '
+	{
+	"jsonrpc": "2.0",
+	"method": "template.get",
+	"params": {
+	    "output": "extend"	
+	    },
+	"auth": "f9a95a8fc2c7d22906e1d37b91ed1915",
+	"id": 1
+	}' | python -m json.tool</pre>
+##自动化api体系##
+DNS Cobbler Saltstack Zabbix Openstack Docker(API接口)  
+——  —— —— —— —— —— —— —— —— —— —— —  
+			 |  
+			OMS（核心）  
+			 |  
+			CMDB(API接口)
