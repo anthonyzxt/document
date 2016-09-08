@@ -120,7 +120,7 @@
 	# $organization: www.unixhot.com
 	# $Create Date:  2014-08-10
 	# $Description:  Monitor Linux Service Status
-	############################################################
+	############################################################ 
 	tcp_status_fun(){
 		TCP_STAT=$1
 		#netstat -n | awk '/^tcp/ {++state[$NF]} END {for(key in state) print key,state[key]}' > /tmp/netstat.tmp
@@ -212,7 +212,7 @@
 	2.2 修改agentd文件：
 	<pre>
 	vi /etc/zabbix/zabbix_agentd.conf
-	Include=/etc/zabbix/zabbix_agentd.d/*.conf</pre>
+	Include=/etc/zabbix/zabbix_agentd.d/\*.conf</pre>
 	2.3重启服务
 	</pre>
 	Nginx修改：

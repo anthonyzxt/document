@@ -1,8 +1,11 @@
 #saltstack#
 
+----------
+
+
 - 三大功能
 	- 远程执行
-	- 配置管理
+	- 配置管理(状态，不可回滚)
 	- 云管理
 - 官网
 	- 用户组 [http://www.saltstack.cn/](http://www.saltstack.cn/)
@@ -27,3 +30,83 @@
 	yum install salt-cloud -y
 	yum install salt-api -y
 	</pre>
+- salt-master服务配置
+	- salt-master服务启动
+	`systemctl start salt-master.service`
+- salt-minion配置
+	- 配置文件 `vi /etc/salt/minion`
+	- 修改内容
+	<pre>1. #master salt 修改为master masterIP(推荐在主机名可解析的情况下用hostname)
+	2. #id: 修改为id： 自定义为IP#添加minion的唯一标识符，变动频繁用IP，比较固定用hostname
+	3. systemctl start salt-minion.service</pre>
+##远程执行##
+- 认证
+	- 1. salt-minion启动后，在`/etc/salt/pki/minion`目录下产生公钥和私钥文件:`minion.pem` 和 `minion.pub`
+	- 2. 在salt-master的 `/etc/salt/minions_pre`会接收minion端主机的私钥文件： `linux-node2` ，暂时存放这里
+	- 3. 在salt-master执行 `salt-key -a linux*`认证后， `/etc/salt/minions_pre`下的私钥文件 `linux-node2`会被保存到`/etc/salt/minions`下;同时salt-minion端的`/etc/salt/pki/minion`会保存salt-master的公钥文件：`minion_master.pub`。至此，认证完成。  
+- salt命令
+	- salt '*' test.ping
+	- salt '*' cmd.run 'Commd'
+	- salt '*' state.sls 
+
+##配置管理##
+- state模块说明
+	- 是以YAML语法编写、后缀名为`.sls`的文件
+- YAML基础：三个规则
+	- 规则1
+		>缩进：2个空格，不能使用`tab`
+	- 规则2
+		>冒号：  
+			a. 和空格配合表示层级关系  
+			b. 表示键/值对，eg: `my_key: my_value`
+	
+	- 规则3
+		>\- ：列表。eg：
+			<pre>- list_value_one
+			- list_value_two
+			- list_value_three</pre>
+- salt-master配置文件示例
+	- 修改文件保存位置
+<pre>file_roots:
+  base:
+    - /srv/salt/
+  dev:
+    - /srv/salt/dev/services
+    - /srv/salt/dev/states
+  prod:
+    - /srv/salt/prod/services
+    - /srv/salt/prod/states
+</pre>
+>说明:base名字是不能修改的，dev和prod的名字随便改
+
+- 示例：安装apache
+	- 文本
+	<pre># cat /srv/salt/web/apace.sls 
+	apache-install:
+	  pkg.installed:
+	    - names:
+	      - httpd
+	      - httpd-devel
+	
+	apache-service:
+	  service.running:
+	    - name: httpd
+	    - enable: True</pre>
+ 
+	- 执行安装
+	`salt 'linux-node2' state.sls web.apace`
+	>在salt-master执行上述命令后，apace.sls文件会被发送到minion的`/var/cache/salt/minion/files/base/web/apace.sls`下被minion执行。
+- 高级state设置示例
+	>默认保存在base根环境下  
+
+	- 脚本
+	<pre>vi top.sls
+	base:
+	  'linux-node2':
+	    - web.apace
+	  'manage':
+	    - web.apace
+	</pre>
+	- 执行命令  
+	`salt 'linux-node2' state.highstate test=True` # 先检测正确性，正确的情况下再执行,目标不要带`*`
+	`salt 'linux-node2' state.highstate test=True`
