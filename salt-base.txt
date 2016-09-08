@@ -96,7 +96,7 @@
 	- 执行安装
 	`salt 'linux-node2' state.sls web.apace`
 	>在salt-master执行上述命令后，apace.sls文件会被发送到minion的`/var/cache/salt/minion/files/base/web/apace.sls`下被minion执行。
-- 高级state设置示例
+- stat.highstat高级state设置示例
 	>默认保存在base根环境下  
 
 	- 脚本
@@ -108,5 +108,45 @@
 	    - web.apace
 	</pre>
 	- 执行命令  
-	`salt 'linux-node2' state.highstate test=True` # 先检测正确性，正确的情况下再执行,目标不要带`*`
-	`salt 'linux-node2' state.highstate test=True`
+	`salt 'linux-node2' state.highstate test=True` # 先检测正确性，正确的情况下再执行,目标不要带`*`  
+	`salt 'linux-node2' state.highstate `
+##ZeroMQ与saltstack##
+- ZeroMQ用到的2种模式
+	- 发布与订阅模式（pub and sub）。salt-master的4505端口用于发送信息。
+	- 请求和响应模式。salt-master的4506端口用于接收minion端消息
+		
+		>查看salt进程名： `yum install  -y python-setproctitle`
+##saltstack数据系统##
+两种数据系统
+	- Grains （谷粒）
+	- Pillar	 （柱子）
+###Grains###
+它是一种静态数据，是minion在启动的时候收集的minion本地的相关信息。如操作系统版本，内核版本等。  
+
+- 作用  
+	1.  资产管理，信息查询
+	2.  用于目标选择
+		<pre>salt -G 'os:Centos' test.ping</pre>
+		 # 使用大G做目标选择
+	3.  配置管理中使用
+		<pre>salt 'cobbler' grains.ls
+		salt 'linux-node2.oldboy.com' grains.items
+		salt 'linux-node2.oldboy.com' grains.item fqdn_ip4
+		salt 'linux-node2.oldboy.com' grains.item os</pre>
+- 自定义
+	1. 在minion里边自定义
+		<pre>grains:
+		  roles: testname</pre>
+	 重启minion服务后测试:
+		<pre>salt 'linux-node2.oldboy.com' grains.item roles    
+		linux-node2.oldboy.com:
+    	    ----------
+    	roles:
+            apache</pre>
+	示例执行echo命令：
+		<pre>salt -G 'roles:apache' cmd.run 'echo hehe' 
+		linux-node2.oldboy.com:
+    	    hehe</pre>
+\# 生产中建议将grains配置写在 `/etc/salt/grains`文件中，写入以K/V格式,如 `testroles: testv`
+- salt刷新grains命令
+	`salt '*' saltutil.sync_grains`
