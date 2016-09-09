@@ -109,7 +109,8 @@
 	</pre>
 	- 执行命令  
 	`salt 'linux-node2' state.highstate test=True` # 先检测正确性，正确的情况下再执行,目标不要带`*`  
-	`salt 'linux-node2' state.highstate `
+	`salt 'linux-node2' state.highstate `  
+	**top file的作用是给指定的目标给特定的状态**。
 ##ZeroMQ与saltstack##
 - ZeroMQ用到的2种模式
 	- 发布与订阅模式（pub and sub）。salt-master的4505端口用于发送信息。
@@ -134,7 +135,7 @@
 		salt 'linux-node2.oldboy.com' grains.item fqdn_ip4
 		salt 'linux-node2.oldboy.com' grains.item os</pre>
 - 自定义
-	1. 在minion里边自定义
+	1. 在minion里边自定义grains
 		<pre>grains:
 		  roles: testname</pre>
 	 重启minion服务后测试:
@@ -143,10 +144,129 @@
     	    ----------
     	roles:
             apache</pre>
-	示例执行echo命令：
+	示例：执行echo命令
 		<pre>salt -G 'roles:apache' cmd.run 'echo hehe' 
 		linux-node2.oldboy.com:
     	    hehe</pre>
 \# 生产中建议将grains配置写在 `/etc/salt/grains`文件中，写入以K/V格式,如 `testroles: testv`
-- salt刷新grains命令
+- salt刷新grains命令  
 	`salt '*' saltutil.sync_grains`
+- grains在top文件使用示例：
+	<pre>base:
+	  'linux-node2':
+	    - web.apace
+	  'roles: apace'
+	    - match: grain
+	    - web.apace</pre>
+
+- 配置管理案例
+- grains开发使用示例
+	- 创建grains目录和测试文件
+	<pre>mkdir /srv/salt/_grains
+	vi my_grains.py
+	#!/usr/bin/env python
+	#_*_ coding: utf-8 _*_
+
+	def my_grains():
+    #初始化一个grains字典
+    grains = {}
+    #设置值
+    grains['iaas'] = 'openstack'
+    grains['edu'] = 'oldboyedy'
+    #返回这个字典
+    return grains
+	</pre>
+	- 同步测试文件
+	<pre>salt '*' saltutil.sync_grains 
+	linux-node2:
+	    - grains.my_grains
+	manage:
+	    - grains.my_grains</pre>
+	
+	文件会被保存在minion端的`/var/cache/salt/minion/files/base/_grains`目录下，而`/var/cache/salt/minion/extmods/grains/`目录下的文件是用来被执行
+	- 结果
+	<pre>salt '*' grains.item iaas
+	linux-node2:
+	    ----------
+	    iaas:
+	        openstack
+	manage:
+	    ----------
+	    iaas:
+	        openstack</pre>   
+- grains的运行优先级
+	1. 系统自带
+	2. grains文件写的
+	3. minion配置文件写的
+	4. 自己写的
+###pillar###
+
+- 简述  
+	**pillar数据是动态的，给特定的minionz指定特定的数据。只有指定的minion自己能看到自己的数据**
+
+- 应用场景  
+	用在比较对数据敏感的场合，如密码  
+
+- pillar查看  
+	`salt '*' pillar.items`
+
+- pillar的master配置  
+	`#pillar_opts: False`找到这行，去掉注释并修改值为`True`
+
+- 自定义pillar
+	<pre>vi /etc/salt/master
+		#pillar_roots:
+	#  base:
+	#    - /srv/pillar</pre>
+	去掉注释，创建base相关目录，重启`salt-master`即可
+- pillar实践
+	1. 建立pillar测试文件
+		<pre>cat /srv/pillar/apache.sls 
+		{% if grains['os'] == 'Centos' %}
+		apache: httpd
+		{% elif grains['os'] == 'Debian' %}
+		apache: apache2
+		{% endif %}</pre>
+
+	2. top file中给特定的minion指定特定的数据
+		<pre>vim /srv/pillar/top.sls
+		base:
+		  'linux-node2':
+		    - web.apace</pre>
+	3. pillar刷新命令  
+		`salt '*' saltutil.refresh_pillar`
+
+	4. 查看  
+	 `salt '*' pillar.items apache`
+- 使用场景
+	- 目标选择
+##pillar和grains的区别##
+
+名称 | 类型 | 数据采集方式 | 应用场景 |定义位置
+-----|------|------------|--------|-----
+grains| 静态 |minion启动时候收集 |数据查询 目标选择 配置管理|minion
+pillar| 动态 |master自定义      |目标选择 配置管理 敏感数据|master
+
+##深入学习saltstack远程执行##
+- 命令讲解  
+	`salt '*' cmd.run 'w'`
+	>命令：salt  
+	>目标： '*'  
+	>模块： cmd.run  
+	>返回：执行后结果的返回，Returnners
+
+###目标targeting###
+---
+**所有匹配目标的方式，都可以用到top file里边来指定目标**  
+
+1. 和minion有关
+	1. minion ID  如： 'linux-node1'
+	2. 通配符   如：linux-node[1|2]'
+		>列表方式： salt -L __'linux-node1,linux-node2'__ test.ping
+		>正则方式： salt -E __linux-(node1|node2)__ test.ping
+2. 和minion无关
+
+
+##主机名设置方案##
+1. IP地址
+2. 根据业务来设置
