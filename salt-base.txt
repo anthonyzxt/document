@@ -265,8 +265,99 @@ pillar| 动态 |master自定义      |目标选择 配置管理 敏感数据|mas
 		>列表方式： salt -L __'linux-node1,linux-node2'__ test.ping
 		>正则方式： salt -E __linux-(node1|node2)__ test.ping
 2. 和minion无关
-
-
+	>子网、IP地址
+	<pre># salt -S 10.0.0.171 test.ping 
+	linux-node2.oldboy.com:
+	    True
+	# salt -S 10.0.0.0/24 test.ping   
+	linux-node2.oldboy.com:
+	    True
+	cobbler:
+	    True</pre>
+	
 ##主机名设置方案##
 1. IP地址
 2. 根据业务来设置
+	>redis-node1-redis04-idc04-soa.example.com  
+	>redis-node1为第一个节点  
+	>redis04为第4个集群  
+	>idc04为哪个机房  
+	>soa为业务线
+##指定目标匹配总结##
+[https://www.unixhot.com/docs/saltstack/topics/targeting/compound.html](https://www.unixhot.com/docs/saltstack/topics/targeting/compound.html)
+##执行模块##
+
+- 模块地址链接  
+[https://www.unixhot.com/docs/saltstack/ref/index.html](https://www.unixhot.com/docs/saltstack/ref/index.html)
+- 常用几个模块  
+	 + network
+	 + service
+		 + available
+		 + status
+		 + reload  
+	 - cp 
+	 	>salt-cp '*' /etc/hosts /tmp/hehe
+	 - state
+		>state.show_top
+##返回程序##
+- 返回相关模块  
+[https://www.unixhot.com/docs/saltstack/ref/returners/index.html](https://www.unixhot.com/docs/saltstack/ref/returners/index.html)
+- 执行单独安装某个任务
+	`salt '*' state.single pkg.installed name=MySQL-python`
+- 以mysql为实例
+	- 建立salt库及相关表
+	<pre>CREATE DATABASE  `salt`
+	  DEFAULT CHARACTER SET utf8
+	  DEFAULT COLLATE utf8_general_ci;
+	
+	USE `salt`;
+	
+	--
+	-- Table structure for table `jids`
+	--
+	
+	DROP TABLE IF EXISTS `jids`;
+	CREATE TABLE `jids` (
+	  `jid` varchar(255) NOT NULL,
+	  `load` mediumtext NOT NULL,
+	  UNIQUE KEY `jid` (`jid`)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+	CREATE INDEX jid ON jids(jid) USING BTREE;
+	
+	--
+	-- Table structure for table `salt_returns`
+	--
+	
+	DROP TABLE IF EXISTS `salt_returns`;
+	CREATE TABLE `salt_returns` (
+	  `fun` varchar(50) NOT NULL,
+	  `jid` varchar(255) NOT NULL,
+	  `return` mediumtext NOT NULL,
+	  `id` varchar(255) NOT NULL,
+	  `success` varchar(10) NOT NULL,
+	  `full_ret` mediumtext NOT NULL,
+	  `alter_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	  KEY `id` (`id`),
+	  KEY `jid` (`jid`),
+	  KEY `fun` (`fun`)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+	
+	--
+	-- Table structure for table `salt_events`
+	--
+	
+	DROP TABLE IF EXISTS `salt_events`;
+	CREATE TABLE `salt_events` (
+	`id` BIGINT NOT NULL AUTO_INCREMENT,
+	`tag` varchar(255) NOT NULL,
+	`data` mediumtext NOT NULL,
+	`alter_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+	`master_id` varchar(255) NOT NULL,
+	PRIMARY KEY (`id`),
+	KEY `tag` (`tag`)
+	) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+	------
+	grant all on salt.* to salt@localhost identified by 'salt';	
+	</pre>
+- 执行模块  
+	`salt '*' test.ping --return mysql`
