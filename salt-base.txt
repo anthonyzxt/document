@@ -361,3 +361,16 @@ pillar| 动态 |master自定义      |目标选择 配置管理 敏感数据|mas
 	</pre>
 - 执行模块  
 	`salt '*' test.ping --return mysql`
+##编写状态模块##
+1. 文件保存目录位置  
+	`/srv/salt/_modules`
+2. 文件命名
+	文件名就是模块名。如：my_disk.py
+	<pre>vi my_disk.py
+	def list():
+	  cmd = 'df -h'
+	  ret = __salt__['cmd.run'](cmd)
+	  return ret</pre>
+3. 刷新执行
+	<pre>salt '*' saltutil.sync_modules
+	salt '*' my_disk.list</pre>
