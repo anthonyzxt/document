@@ -1,7 +1,106 @@
 #DNS-deploy
 ---
-##DNS简介及服务分类
-- 简介
-- 服务类型
+##DNS简介及分类
+- 作用
+- 命名规范
+	- 1. 26个英文字母
+	- 2. “0-9”十个数字
+	- 3. “-”英文中的连词号
+	- 4. 最多63个字节长度  
+	如果没有安装这个规范来配置的话，那么最好在master-view文件上配置`check-names ignore`
+- 分类
+	- 主DNS服务器
+		>就是一台存储原始资料的DNS服务器
+	- 从DNS服务器
+		>使用自动更新的方式从主DNS服务器同步数据的DNS服务器，也叫辅助DNS
+		>服务器
+	- 缓存服务器
+		>不负责本地解析，采用递归方式转发客户机查询请求。并返回结果给客户的DNS服务器，同时缓存查询回来的结果，也叫递归服务器
+	- 轮发器
+		>发现非本机的查询请求时，不再向根域发起请求，而是直接转发给指定的一台或者多台服务器，自身并不缓存查询结果
 ##DNS记录类型
 - SOA 一般理解为一段为自己dns做备注的文本，一般与ns一致。
+	- 示例
+		>www.test.com        578 IN SOA 
+- NS 域的授权名称服务器
+	- 示例
+		>baidu.com.        64988 IN    NS  NS2.baidu.com.
+- MX 域的邮件服务器，要跟一个优先级值，越小越高
+		>baidu.com.        64988 IN    MX  10 mail50.baidu.com.
+- A  IPv4主机地址
+- AAAA  IPv6主机地址
+- PTR  解析IP的指针，反向记录
+- CNAME  权威(正式)名称，定义别名记录
+##DIG NSlookup Host的介绍
+- host  命令查询DNS缓存
+- dig  返回整个解析过程的详细路径
+##部署DNS
+- 部署环境
+	<pre>cat /etc/issue
+	CentOS release 6.7 (Final)
+	Kernel \r on an \m
+	
+	[root@mm01 ~]# uname -r
+	2.6.32-573.el6.x86_64
+	[root@mm01 ~]# uname -m
+	x86_64</pre>
+- yum安装  
+	`yum install bind bind-utils bind-devel bind-chroot -y`
+##配置文件
+- 主配置文件
+	<pre>cat /etc/named.conf   
+	options {
+	        version "1.1.1"
+	        listen-on port 53 { any; };
+	        directory       "/var/named/chroot/etc/";
+	        pid-file        "/var/named/chroot/var/run/named/named.pid"
+	        dump-file       "/var/named/chroot/var/log/binddump.db";
+	        allow-query     { any; };
+	        statistics-file "/var/named/chroot/var/log/named_stats";
+	        memstatistics-file "log/mem_stats";
+	        empty-zones-enable no;
+	        forwarders {8.8.8.8;}
+	};
+	
+	key "rndc-key" {
+	        algorithm hmac-md5;
+	        secret "8JcYJJP+3TGjVgKtE3uP5A==";
+	};
+	
+	controls {
+	        inet 127.0.0.1 port 953
+	                allow { 127.0.0.1; } keys { "rndc-key"; };
+	};
+	
+	logging {
+	        channel warnning {
+	                file "/var/named/chroot/var/log/dnswarning" version 10 size 10m;
+	                severity warning;
+	                print-category yes;
+	                print-severity yes;
+	                print-time yes;
+	        };
+	        channel general_dns {
+	                file "/var/named/chroot/var/log/dns_log" version 10 size 100m;
+	                severity info;
+	                print-category yes;
+	                print-severity yes;
+	                print-time yes;
+	        };
+	        category default {
+	          warning;
+	        };
+	        category queries {
+	          general_dns;
+	        };
+	};
+	
+	include "/var/named/chroot/etc/view.conf"</pre>
+- rndc-key密码的设置
+	<pre># rndc-confgen -a
+	wrote key file "/etc/rndc.key"
+	[root@mm01 ~]# cat /etc/rndc.key 
+	key "rndc-key" {
+	        algorithm hmac-md5;
+	        secret "8JcYJJP+3TGjVgKtE3uP5A==";
+	};</pre>
