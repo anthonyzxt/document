@@ -80,6 +80,34 @@ tuple一旦初始化就不能修改，也就是说append和insert方法会无法
 ('a', 'b', ['X', 'Y'])</pre>
 >这里之所以被修改，是因为修改了列表**['A', 'B']**
 ##字典
+使用键-值（key-value）存储，具有极快的查找速度。  
+
+- 避免key不存在的错误
+	>有两种办法:  
+	>1是通过in判断key是否存在,如：
+	><pre>>>> 'Thomas' in d
+	False</pre>
+	>2是通过dict提供的get方法，如果key不存在，可以返回None，或者自己指定的value： 
+	><pre>>>> d.get('Thomas')
+	>>> d.get('Thomas', -1)
+	-1
+	</pre>
+
+- 字典（dict）和列表（list）的区别
+	- 字典
+	>- 查找和插入的速度极快，不会随着key的增加而增加
+	>- 需要占用大量的内存，内存浪费多
+	- 列表
+	>- 查找和插入的时间随着元素的增加而增加
+	>- 占用空间小，浪费内存很少 
+##set##
+set和dict类似，也是一组key的集合，但不存储value。由于key不能重复，所以，在set中，没有重复的key。
+
+- set的创建
+	<pre>>>> s = set([1, 1, 2, 2, 3, 3])
+	>>> s
+	set([1, 2, 3])</pre>
+	可以通过add(key)和remove(key)方法删除元素;可以看成数学意义上的无序和无重复元素的集合，因此，两个set可以做数学意义上的交集、并集等操作
 ##条件判读和循环
 ###条件判断
 1. if  
@@ -128,3 +156,33 @@ tuple一旦初始化就不能修改，也就是说append和insert方法会无法
 从raw_input()读取的内容永远以字符串的形式返回,必须先把字符串转换为我们想要的类型。  
 如转换为整型：  
 	`birth = int(raw_input('birth: '))`
+##函数
+- 调用函数
+- 定义函数
+	>定义一个函数要使用def语句，依次写出函数名、括号、括号中的参数和冒号:，然后，在缩进块中编写函数体，函数的返回值用return语句返回。
+	<pre>def my_abs(x):
+    if x >= 0:
+        return x
+    else:
+        return -x</pre>
+- 空函数
+	>作用：ss语句什么都不做，那有什么用？实际上pass可以用来作为占位符，比如现在还没想好怎么写函数的代码，就可以先放一个pass，让代码能运行起来
+	<pre>def nop():
+    pass
+	</pre>
+- 参数检查
+	>调用函数时，如果参数个数不对，Python解释器会自动检查出来，并抛出`TypeError`
+	<pre>>>> my_abs(1, 2)
+	Traceback (most recent call last):
+	  File "<stdin>", line 1, in <module>
+	TypeError: my_abs() takes exactly 1 argument (2 given)</pre>
+	而自定义函数需要自己设置检查参数类型，数据类型检查可以用内置函数`isinstance`
+	<pre>def my_abs(x):
+    if not isinstance(x, (int, float)):
+        raise TypeError('bad operand type')
+    if x >= 0:
+        return x
+    else:
+        return -x</pre>
+- 返回值
+	>函数可以同时返回多个值，但其实就是一个tuple
