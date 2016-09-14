@@ -48,18 +48,19 @@
 	`yum install bind bind-utils bind-devel bind-chroot -y`
 ##配置文件
 - 主配置文件
-	<pre>cat /etc/named.conf   
+	<pre># cat /etc/named.conf
 	options {
-	        version "1.1.1"
+	        version "1.1.1";
 	        listen-on port 53 { any; };
 	        directory       "/var/named/chroot/etc/";
-	        pid-file        "/var/named/chroot/var/run/named/named.pid"
-	        dump-file       "/var/named/chroot/var/log/binddump.db";
+	        pid-file        "/var/named/chroot/var/run/named/named.pid";
 	        allow-query     { any; };
+	        dump-file       "/var/named/chroot/var/log/binddump.db";
 	        statistics-file "/var/named/chroot/var/log/named_stats";
+	        zone-statistics yes;
 	        memstatistics-file "log/mem_stats";
 	        empty-zones-enable no;
-	        forwarders {8.8.8.8;}
+	        forwarders {8.8.8.8;};
 	};
 	
 	key "rndc-key" {
@@ -73,15 +74,15 @@
 	};
 	
 	logging {
-	        channel warnning {
-	                file "/var/named/chroot/var/log/dnswarning" version 10 size 10m;
+	        channel warning {
+	                file "/var/named/chroot/var/log/dnswarning" versions 10 size 10m;
 	                severity warning;
 	                print-category yes;
 	                print-severity yes;
 	                print-time yes;
 	        };
 	        channel general_dns {
-	                file "/var/named/chroot/var/log/dns_log" version 10 size 100m;
+	                file "/var/named/chroot/var/log/dns_log" versions 10 size 100m;
 	                severity info;
 	                print-category yes;
 	                print-severity yes;
@@ -95,7 +96,7 @@
 	        };
 	};
 	
-	include "/var/named/chroot/etc/view.conf"</pre>
+	include "/var/named/chroot/etc/view.conf";</pre>
 - rndc-key密码的设置
 	<pre># rndc-confgen -a
 	wrote key file "/etc/rndc.key"
@@ -104,3 +105,54 @@
 	        algorithm hmac-md5;
 	        secret "8JcYJJP+3TGjVgKtE3uP5A==";
 	};</pre>
+- 建立rndc.conf文档
+	<pre>vi /etc/rndc.conf
+	key "rndc-key" {
+	        algorithm hmac-md5;
+	        secret "8JcYJJP+3TGjVgKtE3uP5A==";
+	};
+	
+	options {
+	        default-key "rndc-key";
+	        default-server 127.0.0.1;
+	        default-port 953;
+	};</pre>
+- view配置文件
+	<pre>vi /var/named/chroot/etc/view.conf 
+	view "View"{
+	  zone "lnh.com"{
+	      type master;
+	      file "lnh.com.zone";
+	      allow-transfer {
+	        10.0.0.110;
+	      };
+	      notify yes;
+	      also-notify {
+	        10.0.0.110;
+	      };
+	  };
+	};</pre>
+	这个文件主要是dns master服务器发送变动通知slave服务器
+- Inh.com.zone文件配置
+	<pre>vi /var/named/chroot/etc/Inh.com.zone
+	$ORIGIN .        #有效域是那个，如果这里是lnh.com的话，第三行则用一个@符就可以表示
+	$TTL 3600       ;1h可以设置为2分钟
+	lnh.com         IN SOA op.lnh.com. dns.lnh.com.(
+	                2000    ;serial
+	                900     ;refresh(15min)
+	                600     ;retry(10min)
+	                86400   ;expire(1day)
+	                3600    ;minimum(1hour)
+	                )
+	                NS op.lnh.com.
+	$ORIGIN lnh.com.
+	shanks  A 1.2.3.4
+	op      A 1.2.3.4</pre>
+- 目录授权并启动
+	<pre>cd /var/
+    chown -R named.named named/
+    /etc/init.d/named start
+	chkconfig named on </pre>
+- 命令测试  
+	`dig @127.0.0.1 op.lnh.com`  
+	@指定哪个DNS去解析后边域名
