@@ -156,3 +156,160 @@
 - 命令测试  
 	`dig @127.0.0.1 op.lnh.com`  
 	@指定哪个DNS去解析后边域名
+##deploy slave DNS server
+1. 安装DNS组件，同dns master安装组件一样。
+2. 配置`/etc/named.conf`文件，同主dns一样
+3. 配置`/etc/rndc-key`和`/etc/rndc.conf`文件，同样复制主DNS的即可
+4. 配置view文件
+	<pre>vim /var/named/chroot/etc/view.conf
+	view "SlaveView" {
+	        zone "lnh.com" {
+	        type slave;
+	        masters {10.0.0.101;};
+	        file "slave.lnh.com.zone";
+	        };
+	};</pre>
+	**除了主配置文件被修改，重启需要使用`/etc/init.d/named restart`命令，其他配置文件修改后，使用`rndc reload`重新加载即可**
+5. 修改目录属主及启动服务，同主DNS修改一样。
+6. 在dns的master上执行`rndc reload`,观察下slave服务端端是否产生`slave.lnh.com.zone`文件，有这个文件说明就成功了
+	<pre>cd named/chroot/etc/
+	[root@mnfs etc]# ls
+	localtime  named.conf        named.rfc1912.zones  pki        slave.lnh.com.zone
+	named      named.iscdlv.key  named.root.key       rndc.conf  view.conf</pre>
+##添加A、CNAME、MX、PTR
+1. 编辑/var/named/chroot/etc/lnh.com.zone,在尾部添加一条记录
+	<pre>a       A 1.2.3.4
+	rndc reload</pre>
+	**记得版本号要修改**
+2. CNAME的修改，同样是尾部添加：
+	<pre>cname   CNAME a
+	rndc reload
+	dig @127.0.0.1 cname.lnh.com</pre>
+3.MX记录的添加：
+	<pre>mx      MX 5 10.0.0.104
+	rndc reload
+	host  mx.lnh.com 10.0.0.101</pre>
+4.PTR记录的添加：
+	>用于将一个IP地址映射到对应的主机名,也可以看成是A记录的反向,通过IP访问域名,原来是通过域名访问IP)  
+	>1. view中添加PTR配置
+	><pre>zone "0.0.10.in-addr.arpa" {
+	      type master;
+	       file "0.0.10.zone";
+	       allow-transfer {
+	               10.0.0.104;
+	       };
+	       notify yes;
+	       also-notify {
+	               10.0.0.104;
+	       };
+	  };</pre>
+	>2. 编辑生成`0.0.10.zone`文件
+	><pre>vi /var/named/chroot/etc/0.0.10.zone 
+	$TTL 3600       ;1h
+	@       IN SOA op.lnh.com. dns.lnh.com. (
+	                2003    ;serial
+	                900     ;refresh(15min)
+	                600     ;retry(10min)
+	                86400   ;expire(1day)
+	                3600    ;minimum(1hour)
+	        )
+	                NS op.lnh.com.
+	101     IN      PTR     a.lnh.com.</pre>
+	>3. 编辑slave
+	><pre>vi /var/named/chroot/etc/view.conf
+	zone "0.0.10.in-addr.arpa" {
+        type slave;
+        masters {10.0.0.101; };
+        file "slave.0.0.10.zone";
+       };
+	rdnc reload</pre>
+	>4. 测试
+	><pre>host 10.0.0.101 10.0.0.101</pre>
+##智能DNS（DNS视图）
+- 概要
+	>智能DNS就是根据用户的来路，自动智能化判断来路IP返回给用户，而不需要用户进行选择。
+- 部署主DNS
+	>1. 编辑`vi /var/named/chroot/etc/named.conf`,在include之上添加以下配置：
+		<pre>acl group1 {
+		  10.0.0.101;	#这里也可以匹配网段或多个IP地址，主要是机房IP
+		};
+		acl group2 {
+		  10.0.0.104;	#同上，只是是另一个网段
+		};</pre>  
+	 
+	>2. 配置编辑`vi /var/named/chroot/etc/view.conf`,清空里边的内容，重新编辑：
+		<pre>view "GROUP1" {
+		  match-clients { group1; };
+		  zone "viewlnh.com" {
+		    type master;
+		    file "group1.viewlnh.com.zone";
+		  };
+		};
+		view "GROUP2" {
+		  match-clients { group2; };
+		  zone "viewlnh.com" {
+		    type master;
+		    file "group2.viewlnh.com.zone";
+		  };
+		};</pre>
+	>3. 编辑group1配置文件：
+		<pre>vi /var/named/chroot/etc/group1.viewlnh.com.zone
+		$ORIGIN .        
+		$TTL 3600       ;1h
+		viewlnh.com         IN SOA op.viewlnh.com. dns.viewlnh.com.(
+		                2005    ;serial
+		                900     ;refresh(15min)
+		                600     ;retry(10min)
+		                86400   ;expire(1day)
+		                3600    ;minimum(1hour)
+		                )
+		                NS op.viewlnh.com.
+		$ORIGIN viewlnh.com.
+		view    A 192.168.1.1
+		op      A 192.168.1.1</pre>
+	>4. 编辑group2配置文件：
+		<pre>vi /var/named/chroot/etc/group2.viewlnh.com.zone
+		$ORIGIN .        
+		$TTL 3600       ;1h
+		viewlnh.com         IN SOA op.viewlnh.com. dns.viewlnh.com.(
+		                2005    ;serial
+		                900     ;refresh(15min)
+		                600     ;retry(10min)
+		                86400   ;expire(1day)
+		                3600    ;minimum(1hour)
+		                )
+		                NS op.viewlnh.com.
+		$ORIGIN viewlnh.com.
+		view    A 192.168.1.2
+		op      A 192.168.1.2		
+		</pre>
+	>5. 修改属组为:`named`
+- 在slave配置辅助DNS
+
+##DNS服务器压测
+安装queryperf  
+- 下载软件  
+	`wget http://ftp.isc.org/isc/bind9/9.7.3/bind-9.7.3.tar.gz`  
+- 安装queryperf
+<pre>tar xf bind-9.7.3.tar.gz
+cd bind-9.7.3/contrib/queryperf/
+./configure
+make
+cp queryperf /usr/bin/
+</pre>
+- 建立测试文件
+<pre>vi test.txt
+www.baidu.com A
+www.qq.com A
+www.sina.com A
+www.dangdang.com A</pre>
+- 命令测试
+<pre>
+queryperf -d test.txt -s 10.0.0.101
+</pre>
+或建立如下测试脚本：
+<pre>for d in `seq 1 1000000`
+do
+echo "www.xxx.com A" >> test.txt
+done</pre>
+##查看DNS状态
