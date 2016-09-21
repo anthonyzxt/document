@@ -374,3 +374,64 @@ pillar| 动态 |master自定义      |目标选择 配置管理 敏感数据|mas
 3. 刷新执行
 	<pre>salt '*' saltutil.sync_modules
 	salt '*' my_disk.list</pre>
+##job管理
+
+__job管理的2种方法：__  
+
+- stal-run   
+- module
+###salt-run管理
+---
+1. 查看salt-run对job管理的一些用法
+	<pre>salt-run -d|grep jobs
+	'jobs.active:'
+    Return a report on all actively running jobs from a job id centric
+        salt-run jobs.active
+	'jobs.list_job:'
+        salt-run jobs.list_job 20130916125524463507 #指定jid查看jobs详细信息
+        salt-run jobs.list_job 20130916125524463507 --out=pprint
+	'jobs.list_jobs:'
+    List all detectable jobs and associated functions
+	        salt-run jobs.list_jobs_filter 100 filter_find_job=False
+	'jobs.lookup_jid:'
+        salt-run jobs.lookup_jid 20130916125524463507
+        salt-run jobs.lookup_jid 20130916125524463507 --out=highstate
+	'jobs.print_job:'
+        salt-run jobs.print_job 20130916125524463507
+	</pre>
+2. 使用模块来管理
+	- 使用帮助查询
+		<pre>salt \* sys.doc saltutil|grep job 
+		saltutil.find_cached_job:
+		    Return the data for a specific cached job id. Note this only works if
+		    cache_jobs has previously been set to True on the minion.
+		        salt '*' saltutil.find_cached_job <job id>
+		saltutil.find_job:
+		    Return the data for a specific job id that is currently running.
+		        The job id to search for and return data.
+		        salt '*' saltutil.find_job <job id>
+		    Note that the find_job function only returns job information when the job is still running. If
+		    the job is currently running, the output looks something like this:
+		        # salt my-minion saltutil.find_job 20160503150049487736
+		    If the job has already completed, the job cannot be found and therefore the function returns
+		        # salt my-minion saltutil.find_job 20160503150049487736
+		saltutil.kill_job:
+		    Sends a kill signal (SIGKILL 9) to the named salt job's process
+		        salt '*' saltutil.kill_job <job id>
+		        salt '*' saltutil.runnerjobs.list_jobs</pre>
+	- 示例
+	<pre># salt 'cobbler' cmd.run 'sleep 100; who'
+	^C^CExiting on Ctrl-C
+	This job's jid is:
+	20160917221918444177
+	---
+	# salt 'cobbler' saltutil.find_job 201
+	cobbler:
+    ----------
+	</pre>
+##Event和Reactor
+---
+
+- Event比job更加底层，是saltstack里边对每个时间的一个记录，记录的更详细
+	- 查看Event事件
+		<pre></pre>
