@@ -136,20 +136,26 @@ set和dict类似，也是一组key的集合，但不存储value。由于key不�
     <执行4></pre>
 4. 小结
 	<pre>cat if.py    
-	#!/usr/bin/env python
 	import random
 	real_num = random.randrange(10)
 	
 	retry_count = 0
 	while retry_count < 3:
-	  guess_num=int(raw_input("Pls input a number:"))
+	  guess_num = raw_input("Pls input a number:").strip()
+	  if len(guess_num) == 0:
+	      continue
+	  if guess_num.isdigit():
+	      guess_num = int(guess_num)
+	  else:
+	      print "You need input a number"
 	  if guess_num > real_num :
 	    print "The number is great!"
 	  elif guess_num < real_num :
 	    print "The number is smaller!"
 	  else:
 	    print "you guess right,the number is %d" % real_num
-	    break 
+	    break
+	
 	  retry_count +=1
 	else:
 	  print "The real_num is %d" % real_num
