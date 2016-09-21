@@ -127,13 +127,33 @@ set和dict类似，也是一组key的集合，但不存储value。由于key不�
 	</pre>
 3. if...elif...else
 	<pre>if <条件判断1>:
-    <执行1>
+        <执行1>
 	elif <条件判断2>:
 	    <执行2>
 	elif <条件判断3>:
 	    <执行3>
 	else:
     <执行4></pre>
+4. 小结
+	<pre>cat if.py    
+	#!/usr/bin/env python
+	import random
+	real_num = random.randrange(10)
+	
+	retry_count = 0
+	while retry_count < 3:
+	  guess_num=int(raw_input("Pls input a number:"))
+	  if guess_num > real_num :
+	    print "The number is great!"
+	  elif guess_num < real_num :
+	    print "The number is smaller!"
+	  else:
+	    print "you guess right,the number is %d" % real_num
+	    break 
+	  retry_count +=1
+	else:
+	  print "The real_num is %d" % real_num
+	 </pre>
 ###循环###
 >两种循环：`for...in`和`while`  
 
