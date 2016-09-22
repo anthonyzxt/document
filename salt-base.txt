@@ -451,4 +451,75 @@ __job管理的2种方法：__
 - Event比job更加底层，是saltstack里边对每个时间的一个记录，记录的更详细
 	- 查看Event事件
 		<pre></pre>
->>>>>>> 004c013944823adca36eff15c317826143adc06f
+##配置管理
+1. sls文件
+	>- sls文件是描述文件,是saltstack的缩写，状态不可回滚  
+	>- sls状态模块文档官网地址：  
+		<pre>https://docs.saltstack.com/en/latest/ref/states/all/</pre> 
+	>- sls文件结构距离说明
+		<pre># cat /srv/salt/web/apace.sls 
+		apache-install:			#名称或ID声明，默认是name声明，如php： pkg.installed，会去安装php 
+		  pkg.installed:		#状态（state）声明。这是是用指定的模块的方法去干什么事
+		    - names:			#选项声明。指定要干的事情的内容
+		      - httpd	
+		      - httpd-devel
+		apache-service:			#ID最好必须唯一，特别是高级状态
+		  service.running:
+		    - name: httpd
+		      - enable: True</pre>
+
+2. LAMP架构实例
+	- 规划
+		>a. 安装软件包    pkg  
+		>b. 修改配置文件  file  
+		>c. 启动服务      service
+	- pkg模块常用方法
+		- pkg.installed	#安装
+			>pkg.installed模块示例：
+			<pre>common_packages:
+		 	pkg.installed:
+		      - pkgs:
+		        - unzip
+		        - dos2unix
+		        - salt-minion: 2015.8.5-1.el6</pre>	
+		- pkg.latest #确保最新版本
+		- pkg.remove #卸载
+		- pkg.purge	#卸载并删除配置文件  
+	- file模块常用方法
+		- file.managed
+	- service模块常用方法  
+
+	- LAMP状态文件
+		<pre>lamp-pkg:
+		  pk.installed:
+		    - pkgs:
+		      - httpd
+		      - php
+		      - mysql
+		      - mariadb-server
+		      - php-mysql
+		      - php-cli
+		      - php-mbstring
+		apache-config:		#另一种方法是以文件名为ID声明
+		  file.managed:		#一个ID声明下面，状态模块不能重复出现
+		    - name: /etc/http/conf/http.conf 
+		    - source: salt://files/httpd.conf
+		    - user: root
+		    - group: root
+		    - mode: 644
+		php-config:
+		  file.managed:
+		    - name: /etc/phpi
+			- source: salt://php/phpd.conf
+			- user: root
+			- group: root
+			- mode: 644
+		mysql-config:
+		  file.managed:
+		    - name: /etc/my.cnf
+		    - source: salt://mysql/my.cnf
+		    - user: root
+		    - group: root
+		    - mode: 644   			
+		</pre>	
+	
