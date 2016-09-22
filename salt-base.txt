@@ -374,3 +374,17 @@ pillar| 动态 |master自定义      |目标选择 配置管理 敏感数据|mas
 3. 刷新执行
 	<pre>salt '*' saltutil.sync_modules
 	salt '*' my_disk.list</pre>
+##其他组件
+1. Mine
+	>主要应用场景是配合前端负载均衡动态获取Mine汇报信息，来动态生成配置文件。例如官网通过mine.get指定业务设备的网卡地址动态生成haprxoy.cfg文件。Mine还支持get docker容器的地址，可简单实现动态添加业务。  
+	- 两种配置放置  
+		a.  是通过在Minion配置文件中定义
+		b.  是通过模块的方式去下发Mine采集任务。
+		<pre>salt 'Minion' mine.send network.ip_addrs Minion:
+		True
+		salt 'Minion' mine.get 'Minion' network.ip_Minion:
+		----------
+		Minion:
+		- 172.17.42.1</pre>
+
+2. Peer
