@@ -488,38 +488,112 @@ __job管理的2种方法：__
 	- file模块常用方法
 		- file.managed
 	- service模块常用方法  
-
-	- LAMP状态文件
+		- service.running
+		- 示例说明
+			<pre>redis:
+		  service.running:		
+		    - enable: True		#设置可以开机启动
+		    - reload: True		#设置可以自动重载
+		    - watch:
+		      - pkg: redis</pre>
+	- LAMP状态文件-lamp.sls
 		<pre>lamp-pkg:
 		  pk.installed:
 		    - pkgs:
 		      - httpd
 		      - php
-		      - mysql
+		      - mariadb
 		      - mariadb-server
 		      - php-mysql
 		      - php-cli
 		      - php-mbstring
+		
 		apache-config:		#另一种方法是以文件名为ID声明
 		  file.managed:		#一个ID声明下面，状态模块不能重复出现
-		    - name: /etc/http/conf/http.conf 
-		    - source: salt://files/httpd.conf
+		    - name: /etc/http/conf/httpd.conf 
+		    - source: salt://lamp/files/httpd.conf
 		    - user: root
 		    - group: root
 		    - mode: 644
+		
 		php-config:
 		  file.managed:
-		    - name: /etc/phpi
-			- source: salt://php/phpd.conf
+		    - name: /etc/php.ini
+			- source: salt://lamp/php/php.ini
 			- user: root
 			- group: root
 			- mode: 644
+		
 		mysql-config:
 		  file.managed:
 		    - name: /etc/my.cnf
-		    - source: salt://mysql/my.cnf
+		    - source: salt://lamp/mysql/my.cnf
 		    - user: root
 		    - group: root
-		    - mode: 644   			
+		    - mode: 644
+		
+		apache-service:
+		  service.running:
+			- name: httpd
+		    - enable: True
+		    - reload: True
+		    
+		mysql-service:
+		  service.running:
+			- name:mariadb
+			- enable: True 
+			- reload: True 			
+		</pre>
+		__`salt://`表示当前环境的根目录，即`salt-master`的`master`配置文件中的`file_roots`下的`base`路径__ ，另一种写法：
+		<pre>
+	    apache-server:
+		  pkg.install:
+		    - pkgs:
+			  - httpd
+			  - php
+		      - php-mysql
+		      - php-cli
+		      - php-mbstring
+		  file.managed:
+			- name: /etc/http/conf/http.conf 
+		    - source: salt://lamp/files/httpd.conf
+		    - user: root
+		    - group: root
+		    - mode: 644
+		  server.running:
+			- name: httpd
+			- enable: True
+			- reload: True
+		
+		mysql-server:
+		  pkg.install:
+		    - pkgs:
+		      - mariadb
+		      - mariadb-server
+		  file.managed:
+		    - name: /etc/my.cnf
+		    - source: salt://lamp/mysql/my.cnf
+		    - user: root
+		    - group: root
+		    - mode: 644
+		  server.running:
+			- name: mariadb
+			- enable: True
+			- reload: True
+			
+		php-config:
+		  file.managed:
+		    - name: /etc/php.ini
+			- source: salt://lamp/php/php.ini
+			- user: root
+			- group: root
+			- mode: 644
 		</pre>	
-	
+		
+	- 在salt-master上建立相关目录
+		<pre>mkdir /srv/salt/lamp
+		mkdir /srv/salt/lamp/files
+		cp /etc/my.cnf /etc/php.ini /etc/httpd/conf/httpd.conf /srv/salt/lamp/files
+		vi /srv/salt/lamp/lamp.sys</pre>
+	- 执行单个状态文件
+		<pre>salt 'linux-node2' state.sls lamp.lamp</pre>
