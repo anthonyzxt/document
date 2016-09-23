@@ -498,7 +498,7 @@ __job管理的2种方法：__
 		      - pkg: redis</pre>
 	- LAMP状态文件-lamp.sls
 		<pre>lamp-pkg:
-		  pk.installed:
+          pkg.installed:
 		    - pkgs:
 		      - httpd
 		      - php
@@ -519,7 +519,7 @@ __job管理的2种方法：__
 		php-config:
 		  file.managed:
 		    - name: /etc/php.ini
-			- source: salt://lamp/php/php.ini
+			- source: salt://lamp/files/php.ini
 			- user: root
 			- group: root
 			- mode: 644
@@ -527,7 +527,7 @@ __job管理的2种方法：__
 		mysql-config:
 		  file.managed:
 		    - name: /etc/my.cnf
-		    - source: salt://lamp/mysql/my.cnf
+		    - source: salt://lamp/files/my.cnf
 		    - user: root
 		    - group: root
 		    - mode: 644
@@ -540,10 +540,9 @@ __job管理的2种方法：__
 		    
 		mysql-service:
 		  service.running:
-			- name:mariadb
+			- name: mariadb
 			- enable: True 
-			- reload: True 			
-		</pre>
+			- reload: True</pre>
 		__`salt://`表示当前环境的根目录，即`salt-master`的`master`配置文件中的`file_roots`下的`base`路径__ ，另一种写法：
 		<pre>
 	    apache-server:
@@ -597,3 +596,48 @@ __job管理的2种方法：__
 		vi /srv/salt/lamp/lamp.sys</pre>
 	- 执行单个状态文件
 		<pre>salt 'linux-node2' state.sls lamp.lamp</pre>
+3. 状态间依赖关系
+	1. 我依赖谁： __require__  
+		<pre>apache-service:
+		  service.running:
+		    - name: httpd
+		    - enable: True
+		    - reload: True
+		    - require:
+		      - pkg: lamp-pkg
+		      - file: apache-config</pre>
+	2. 我被谁依赖： __require_in__
+		<pre>mysql-config:
+		  file.managed:
+		    - name: /etc/my.cnf
+		    - source: salt://lamp/files/my.cnf
+		    - user: root
+		    - group: root
+		    - mode: 644
+		    - require_in:
+		      - service: mysql-service</pre>
+	3. 我监控谁： __watch__
+		<pre>apache-service:
+	  service.running:
+	    - name: httpd
+	    - enable: True
+	    - reload: True
+	    - require:
+	      - pkg: lamp-pkg
+	    - watch:
+	      - file: apache-config</pre>
+	   	> **watch的作用是监视`apache-config`的状态的变化，这里如果没有 `reload: True` 的话，会直接重启(`restart`)该服务**
+	4. 我被谁监控： __watch_in__
+	5. 我引用谁： __include__
+		>模块化思维：原子化
+		<pre>cat init.sls
+		include:
+		  - lamp.pkg
+		  - lamp.config
+		  - lamo.service
+		</pre>
+	6. 我扩展谁
+4. 编写sls技巧
+	1. 按状态分类： 如果单独使用，很清晰，如单独的pkg、config、service的sls文件
+	2. 按服务分类： 可以被其他的`sls include`,如LNMP include mysql服务
+##Jinja2模板
