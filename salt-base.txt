@@ -487,6 +487,9 @@ __job管理的2种方法：__
 		- pkg.purge	#卸载并删除配置文件  
 	- file模块常用方法
 		- file.managed
+			>backup: 对象
+		- file.append
+			>text 
 	- service模块常用方法  
 		- service.running
 		- 示例说明
@@ -637,7 +640,183 @@ __job管理的2种方法：__
 		  - lamo.service
 		</pre>
 	6. 我扩展谁
+	7. unless
+		<pre>cmd.run a
+		unless: test -L /usr/local/haproxy</pre>
+		>以上test的值为真就不执行cmd.run
+	8. onlyif
 4. 编写sls技巧
 	1. 按状态分类： 如果单独使用，很清晰，如单独的pkg、config、service的sls文件
 	2. 按服务分类： 可以被其他的`sls include`,如LNMP include mysql服务
 ##Jinja2模板
+###文档地址： [http://docs.jinkan.org/docs/jinja2/](http://docs.jinkan.org/docs/jinja2/)
+- 分隔符
+	1.  {% ... %} ：用于执行诸如 for 循环 或赋值的语句
+	2.   {{ ... }}  ：把表达式的结果打印到模板上
+- 变量的表示
+	1. {{ foo.bar }}
+	2. {{ foo['bar'] }}
+- Jinja2在YAML中的使用
+	1. 在sls状态文件中的file中使用`template： jinja`声明
+	2. 然后列出参数列表`defaults: PORT：80`
+	3. 模板使用
+		>在配置文件中把需要修改个地址改为 `{{ PORT }}`，支持salt、grains、pillar赋值，如在httpd.conf模板中：
+		`Listen： {{ grains['fqdn_ip4'][0] }}:{{ PORT }}`
+		`{{ salt['network.hw_addr']('eth0') }}`
+		`{{ pillar['apache'] }}`，其中pillar用于配置用户名密码的时候
+	4. 写在sls里边的defaults中，变量列表中：
+		<pre>- defaults:
+		  IPADDR: {{ grains['fqdn_ip4'][0] }}
+		  PORT: 88</pre>
+##配置管理小结
+- sls文件里的三个声明
+	- ID  
+	- 状态 
+	- 选项
+- 状态文件的可以按类来写
+	- 按状态
+	- 按服务
+- 状态间的依赖关系
+	- require or require_in
+	- watch or watch_in
+	- include or include_in
+- Jinja2模板的应用
+##salt项目实战
+###1. 系统初始化
+1. 系统初始化
+2. 功能模块
+	- 设置单独的目录
+		- haproxy
+		- nginx
+		- php
+		- mysql
+		- memcached
+3. 业务模块
+	- 根据业务类型划分
+		- web服务
+		- 论坛bbs 
+####1.1 salt环境配置
+
+- base 基础环境
+- prod 生产环境  
+	`mkdir /srv/salt/{base,prod}`  
+- pillar的设置    
+	`mkdir /srv/pillar/{base,prod} -p`
+	- 环境初始化：
+		1. dns配置
+			<pre>/etc/resolv.conf:
+			  file.managed:
+			    - source: salt://init/files/resolv.conf
+			    - user: root
+			    - group: root
+			    - mode: 644</pre>
+		2. histroy记录时间
+			<pre>/etc/profile:
+			  file.append:
+			    - text:
+			      - export HISTTIMEFORMAT="%F %T `whoami`"</pre>
+			>这里是`file.append`方法，在文件的末尾追加`text：`的内容
+		3. 记录命令操作
+			<pre>vi audit.sls 
+			/etc/bashrc:
+			  file.append:
+			    - text:
+			      - export PROMPT_COMMAND='{ msg=$(history 1 | { read x y; echo $y; });logger
+			 "[euid=$(whoami)]":$(who am i):[`pwd`]"$msg"; }'</pre>
+		4. 内核参数优化
+			<pre>net.ipv4.ip_local_port_range:
+			  sysctl.present:
+			    - value: 10000 65000
+			fs.file-max:
+			  sysctl.present:
+			    - value: 2000000
+			net.ipv4.ip_forward:
+			  sysctl.present:
+			    - value: 1
+			vm.swappiness:
+			  sysctl.present:
+			- value: 0</pre>
+		5. 安装yum仓库
+			<pre>yum_repo_release:
+			  pkg.installed:
+			    - sources:
+			      - epel-release: http://mirrors.aliyun.com/epel/epel-release-latest-7.noarch
+			.rpm</pre>
+		6. 安装zabbix-agent
+			1. 基本设置
+				<pre>cat salt/base/init/zabbix_agent.sls 
+			zabbix-agent:
+			  pkg.installed:
+			    - name: zabbix-agent
+			  file.managed:
+			    - name: /etc/zabbix/zabbix_agentd.conf
+			    - source: salt://init/files/zabbix_agentd.conf
+			    - template: jinja
+				- backup: minion
+			    - defaults:
+			      Zabbix_Server: {{ pillar['zabbix-agent']['Zabbix_Server'] }}
+				  Hostname: {{ grains[fqdn] }}
+			    - require:
+			      - pkg: zabbix-agent
+			  service.running:
+			    - enable: True
+			    - watch:
+			      - pkg: zabbix-agent
+			      - file: zabbix-agent
+			zabbix_agentd.conf.d:
+			  file.directory:
+			    - name: /etc/zabbix/zabbix_agentd.d
+			    - watch_in:
+			      - service: zabbix-agent
+			    - require:
+			      - pkg: zabbix-agent
+			    - file: zabbix-agent</pre>
+			2. pillar下的base设置,即`Server: {{ pillar['zabbix-agent']['Zabbix_Server'] }}`的值
+				<pre>vi pillar/base/zabbix/agent.sls 
+			zabbix-agent:
+			  Zabbix_Server: 10.0.0.160</pre>
+			3. top文件设置
+				<pre>cat /srv/pillar/base/top.sls 
+				base:
+				  '*':
+				    - zabbix.agent</pre>
+- 备份功能
+	>在sls文档中的`file.managed`下加入`backup: minion`,执行后会将档案备份在`/var/cache/salt/minion/XX_backup`目录下
+####1.2 haproxy
+1. 创建需要的目录
+	<pre>cd /srv/salt/prod;mkdir haproxy keepalived memcached nginx php pkg</pre>
+2. 常用服务包的安装状态文件
+	<pre>cat /srv/salt/prod/pkg/make.sls 
+	make-pkg:
+	  pkg.installed:
+	    - pkgs:
+	      - gcc
+	      - gcc-c++
+	      - glibc
+	      - make
+	      - autoconf
+	      - openssl
+	      - openssl-devel
+	      - pcre
+	      - pcre-devel</pre>
+	- haproxy默认安装
+		<pre>make TARGET=linux2628
+		make install PREFIX=/usr/local/haproxy-1.6.3
+		ln -s /usr/local/haproxy-1.6.3 /usr/local/haproxy</pre>
+	- 修改启动脚本
+		<pre>[root@cobbler haproxy-1.6.3]# vi examples/haproxy.init
+		BIN=/usr/local/haproxy/sbin/$BASENAME</pre>
+	- 复制启动文件
+		<pre>cp examples/haproxy.init ../../files/</pre>	 
+-	haproxy sls文件
+	<pre># cd /srv/salt/prod/haproxy/
+	vi install.sls</pre> 
+##问题汇总
+1. `SaltRenderError: Jinja variable 'Zabbix_Server' is undefined`
+	变量未定义或变量名不统一，检查后统一：
+2. 格式问题，即缩进问题。 
+	<pre>[ERROR   ] Data passed to highstate outputter is not a valid highstate return: {'linux-node2.oldboy.com': ['Rendering SLS \'base:init.zabbix_agent\' failed: while parsing a block collection\n  in "<unicode string>", line 5, column 5:\n        - name: /etc/zabbix/zabbix_agent ... \n        ^\nexpected <block end>, but found \'<block mapping start>\'\n  in "<unicode string>", line 9, column 6:\n         Zabbix_Server: 10.0.0.160\n         ^']}</pre>
+3. `Error: rpmdb open failed`  
+	重建rpmdb<pre>rm /var/lib/rpm/__db*
+	rpm --rebuilddb
+	yum update</pre>
