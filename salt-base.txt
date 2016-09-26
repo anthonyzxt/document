@@ -810,7 +810,118 @@ __job管理的2种方法：__
 		<pre>cp examples/haproxy.init ../../files/</pre>	 
 -	haproxy sls文件
 	<pre># cd /srv/salt/prod/haproxy/
-	vi install.sls</pre> 
+	vi install.sls
+	include:
+	  - pkg.make
+	
+	haproxy-install:
+	  file.managed:
+	    - name: /usr/local/src/haproxy-1.6.3.tar.gz
+	    - source: salt://haproxy/files/haproxy-1.6.3.tar.gz
+	    - mode: 755
+	    - user: root
+	    - group: root
+	  cmd.run:
+	    - name: cd /usr/local/src && tar xf haproxy-1.6.3.tar.gz && cd haproxy-1.6.3 && make TARGET=linux2628 && make install PREFIX=/usr/local/haproxy-1.6.3 && ln -s /usr/local/haproxy-1.6.3 /usr/local/haproxy
+	    - unless: test -L /usr/local/haproxy
+	    - require:
+	      - pkg: make-pkg
+	      - file: haproxy-install
+	/etc/init.d/haproxy:
+	  file.managed:
+	    - source: salt://haproxy/files/haproxy.init 
+	    - mode: 755
+	    - user: root
+	    - group: root
+	    - require_in:
+	      - file: haproxy-install
+	
+	net.ipv4.ip_nonlocal_bind:
+	  sysctl.present:
+	    - value: 1
+	
+	/etc/haproxy:
+	  file.directory:
+	    - user: root
+	    - group: root
+	    - mode: 755</pre>
+	>文件分析：四部分构成：安装、配置文件部分、目录管理部分，网络设置 
+3. 业务引用  
+	>为了方便在生产中使用，将基础安装状态文件分类存放，环境如下:  
+	>**cluster**：存放各种生产组合状态文件  
+	>**modules**：存放基础状态文件
+	1. cluster的创建
+		<pre>mkdir cluster modules</pre>
+	2. haproxy的对外配置文件
+		<pre>cat files/haproxy-outside.cfg 
+		global
+		maxconn 100000
+		chroot /usr/local/haproxy
+		uid 99  
+		gid 99 
+		daemon
+		nbproc 1 
+		pidfile /usr/local/haproxy/logs/haproxy.pid 
+		log 127.0.0.1 local3 info
+		
+		defaults
+		option http-keep-alive
+		maxconn 100000
+		mode http
+		timeout connect 5000ms
+		timeout client  50000ms
+		timeout server 50000ms
+		
+		listen stats
+		mode http
+		bind 0.0.0.0:8888
+		stats enable
+		stats uri     /haproxy-status 
+		stats auth    haproxy:saltstack
+		
+		frontend frontend_www_example_com
+		bind 10.0.0.180:80
+		mode http
+		option httplog
+		log global
+		    default_backend backend_www_example_com
+		
+		backend backend_www_example_com
+		option forwardfor header X-REAL-IP
+		option httpchk HEAD / HTTP/1.0
+		balance source
+		server web-node1  10.0.0.160:8080 check inter 2000 rise 30 fall 15
+		server web-node2 10.0.0.171:8080 check inter 2000 rise 30 fall 15</pre>
+	3. 服务管理文件
+		<pre>cat haproxy-outside.sls 
+		include:
+		  - modules.haproxy.install
+		
+		haproxy-service:
+		  file.managed:
+		    - name: /etc/haproxy/haproxy.cfg
+		    - source: salt://cluster/files/haproxy-outside.cfg
+		    - user: root
+		    - group: root
+		    - mode: 644
+		  service.running:
+		    - name: haproxy
+		    - enable: True
+		    - reload: True
+		    - require:
+		      - cmd: haproxy-install
+		    - watch:
+		      - file: haproxy-service</pre>
+	4. 编辑top文件，加入以下内容：
+		<pre>prod:
+		  'linux-node*':
+		    - cluster.haproxy-outside</pre>
+	5. 执行，测试
+		<pre>salt '*' state.highstate test=True</pre>
+		>在测试ok后，可正式安装。
+		>另haproxy的访问地址：本机IP:8888/haproxy-status,用户名：haproxy；密码：saltstack
+
+	
 ##问题汇总
 1. `SaltRenderError: Jinja variable 'Zabbix_Server' is undefined`
 	变量未定义或变量名不统一，检查后统一：
