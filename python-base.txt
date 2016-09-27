@@ -43,6 +43,10 @@ del os, histfile, readline, rlcompleter
 </pre>	
 ##运算符
 - + - * /
+##切片
+>切片注意事项：顾前不顾后  
+取后边倒数2个：list[-2:]  
+取前边2个:list[:2]	
 ##列表
 - 主要方法
 	>示例：
