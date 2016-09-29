@@ -920,8 +920,174 @@ __job管理的2种方法：__
 		<pre>salt '*' state.highstate test=True</pre>
 		>在测试ok后，可正式安装。
 		>另haproxy的访问地址：本机IP:8888/haproxy-status,用户名：haproxy；密码：saltstack
-
+####1.3 keepalived
+1. keepalived的安装、服务log参数配置、服务启动管理状态文件
+	<pre>cat /srv/salt/prod/modules/keepalived/install.sls          
+	keepalived-install:
+	  file.managed:
+	    - name: /usr/local/src/keepalived-1.2.17.tar.gz
+	    - source: salt://modules/keepalived/files/keepalived-1.2.17.tar.gz
+	    - mode: 755
+	    - user: root
+	    - group: root
+	  cmd.run:
+	    - name: cd /usr/local/src && tar zxf keepalived-1.2.17.tar.gz && cd keepalived-1.2.17 && ./configure --prefix=/usr/local/keepalived --disable-fwmark && make && make install
+	    - unless: test -d /usr/local/keepalived
+	    - require:
+	      - file: keepalived-install
 	
+	/etc/sysconfig/keepalived:
+	  file.managed:
+	    - source: salt://modules/keepalived/files/keepalived.sysconfig
+	    - mode: 644
+	    - user: root
+	    - group: root
+	
+	/etc/init.d/keepalived:
+	  file.managed:
+	    - source: salt://modules/keepalived/files/keepalived.init
+	    - mode: 755
+	    - user: root
+	    - group: root
+	
+	keepalived-init:
+	  cmd.run:
+	    - name: chkconfig --add keepalived
+	    - unless: chkconfig --list | grep keepalived
+	    - require:
+	      - file: /etc/init.d/keepalived
+	
+	/etc/keepalived:
+	  file.directory:
+	    - user: root
+	    - group: root</pre>
+也可以定义一下变量：
+	<pre>cat /srv/salt/prod/modules/keepalived/install.sls            
+	{% set keepalived_tar = 'keepalived-1.2.17.tar.gz' %}
+	{% set keepalived_source = 'salt://modules/keepalived/files/keepalived-1.2.17.tar.gz' %}
+	
+	keepalived-install:
+	  file.managed:
+	    - name: /usr/local/src/{{ keepalived_tar }}
+	    - source: {{ keepalived_source }}
+	    - mode: 755
+	    - user: root
+	    - group: root
+	  cmd.run:
+	    - name: cd /usr/local/src && tar zxf {{ keepalived_tar }} && cd keepalived-1.2.17 && ./configure --prefix=/usr/local/keepalived --disable-fwmark && make && make install
+	    - unless: test -d /usr/local/keepalived
+	    - require:
+	      - file: keepalived-install</pre>
+2. 服务参数配置及启动管理文件
+	- 配置文件	
+		<pre>vi /srv/salt/prod/cluster/files/haproxy-outside-keepalived.conf 
+		     saltstack@example.com
+		   }
+		   notification_email_from keepalived@example.com
+		   smtp_server 127.0.0.1
+		   smtp_connect_timeout 30
+		   router_id {{ROUTEID}}
+		}
+		
+		vrrp_instance haproxy_ha {
+		state {{STATEID}}
+		interface eth0
+		    virtual_router_id 36
+		priority {{PRIORITYID}}
+		    advert_int 1
+		authentication {
+		auth_type PASS
+		        auth_pass 1111
+		    }
+		    virtual_ipaddress {
+		       10.0.0.180
+		    }
+		}</pre>
+	- 管理文件
+		<pre>cat /srv/salt/prod/cluster/haproxy-outside-keepalived.sls 
+		include:
+		  - modules.keepalived.install
+		keepalived-server:
+		  file.managed:
+		    - name: /etc/keepalived/keepalived.conf
+		    - source: salt://cluster/files/haproxy-outside-keepalived.conf
+		    - mode: 644
+		    - user: root
+		    - group: root
+		    - template: jinja
+		    {% if grains['fqdn'] == 'cobbler' %}
+		    - ROUTEID: haproxy_ha
+		    - STATEID: MASTER
+		    - PRIORITYID: 150
+		    {% elif grains['fqdn'] == 'linux-node2.oldboy.com' %}
+		    - ROUTEID: haproxy_ha
+		    - STATEID: BACKUP
+		    - PRIORITYID: 100
+		    {% endif %}
+		  service.running:
+		    - name: keepalived
+		    - enable: True
+		    - watch:
+		      - file: keepalived-server</pre>
+####1.4 memcache的状态文件
+1. 服务安装文件：
+	<pre>cat modules/memcached/install.sls 
+	include:
+	  - modules.libevent.install
+	
+	memcached-source-install:
+	  file.managed:
+	    - name: /usr/local/src/memcached-1.4.24.tar.gz
+	    - source: salt://modules/memcached/files/memcached-1.4.24.tar.gz
+	    - user: root
+	    - group: root
+	    - mode: 644
+	  cmd.run:
+	    - name: cd /usr/local/src && tar zxf memcached-1.4.24.tar.gz && cd memcached-1.4.24&& ./configure --prefix=/usr/local/memcached --enable-64bit --with-libevent=/usr/local/libevent && make && make install
+	    - unless: test -d /usr/local/memcached
+	    - require:
+	      - cmd: libevent-source-install
+	      - file: memcached-source-install</pre>
+2. 服务管理模块
+	>由于服务跟实际生产相关联，设置端口不一致，所以服务启动管理跟业务放一起，这里以bbs为例：
+	<pre>[root@cobbler prod]# cat bbs/memcached.sls 
+	include:
+	  - modules.memcached.install
+	  - modules.user.www
+	
+	memcahced-service:
+	  cmd.run:
+	    - name: /usr/local/memcached/bin/memcached -d -m 128 -p 11211 -c 8096 -u www
+	    - unless: netstat -tnlp | grep 11211
+	    - require:
+	      - cmd: memcached-source-install
+	      - user: www-user-group</pre> 
+3. top文件中加入memcached的目标匹配管理。
+4. 相关libevnt的安装状态文件
+	<pre>libevent-source-install:
+	  file.managed:
+	    - name: /usr/local/src/libevent-2.0.22-stable.tar.gz
+	    - source: salt://modules/libevent/files/libevent-2.0.22-stable.tar.gz
+	    - user: root
+	    - group: root
+	    - mode: 644
+	  cmd.run:
+	    - name: cd /usr/local/src && tar zxf libevent-2.0.22-stable.tar.gz && cd libevent-2.0.22-stable && ./configure --prefix=/usr/local/libevent && make && make install
+	    - unless: test -d /usr/local/libevent
+	    - require:
+	      - file: libevent-source-install</pre>
+5. 添加www用户状态文件
+	<pre>cat modules/user/www.sls 
+	www-user-group:
+	  group.present:
+	    - name: www
+	    - gid: 1000
+	  user.present:
+	    - name: www
+	    - fullname: www
+	    - shell: /sbin/nologin
+	    - uid: 1000
+	    - gid: 1000</pre>
 ##问题汇总
 1. `SaltRenderError: Jinja variable 'Zabbix_Server' is undefined`
 	变量未定义或变量名不统一，检查后统一：
@@ -931,3 +1097,5 @@ __job管理的2种方法：__
 	重建rpmdb<pre>rm /var/lib/rpm/__db*
 	rpm --rebuilddb
 	yum update</pre>
+4. `No matching sls found for 'modules.keepalived.install' in env 'prod`
+	状态文件路径有问题，或不匹配
