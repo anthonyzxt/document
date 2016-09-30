@@ -1088,6 +1088,13 @@ __job管理的2种方法：__
 	    - shell: /sbin/nologin
 	    - uid: 1000
 	    - gid: 1000</pre>
+####1.5 php服务
+1. php服务的安装状态文件
+	<pre></pre>
+####1.6
+####1.7
+####1.8
+####1.9
 ##问题汇总
 1. `SaltRenderError: Jinja variable 'Zabbix_Server' is undefined`
 	变量未定义或变量名不统一，检查后统一：
