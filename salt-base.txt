@@ -445,6 +445,27 @@ __job管理的2种方法：__
 	cobbler:
     ----------
 	</pre>
+###Job cache
+使用job cache将数据从master端保存到数据库
+
+- 要求
+	- 安装MySQL-python模块`yum install -y mysql-python`
+- 修改minion配置文件,在最后边加入mysql配置部分
+	<pre>master_job_cache: mysql
+	mysql.user: 'salt'
+	mysql.pass: 'salt'
+	mysql.db: 'salt'
+	mysql.port: '3306'</pre>
+- 重启salt-master服务
+###Job是存放位置
+使用`salt '*' saltutil.running`查看正在运行的任务
+
+- master端：
+	`/var/cache/salt/master/jobs/`
+- minion端：
+	`/var/cache/salt/minion/proc`
+###master端运行的模块之一
+manage模块：	`salt-run manage.status` 查看服务器状态，还有`up down versions`等方法
 ##Event和Reactor
 ---
 
@@ -1089,12 +1110,223 @@ __job管理的2种方法：__
 	    - uid: 1000
 	    - gid: 1000</pre>
 ####1.5 php服务
-1. php服务的安装状态文件
-	<pre></pre>
-####1.6
-####1.7
-####1.8
-####1.9
+1. php服务的安装状态文件(基于自己的v2版本)
+	<pre># cat /srv/salt/prod/modules/php/install.sls 
+	include:
+	  - modules.pkg.make
+	  - modules.user.www
+	
+	pkg-php:
+	  pkg.installed:
+	    - names:
+	      - openssl-devel
+	      - mariadb-devel
+	      - swig
+	      - libjpeg-turbo
+	      - libjpeg-turbo-devel
+	      - libpng
+	      - libpng-devel
+	      - freetype
+	      - freetype-devel
+	      - libxml2
+	      - libxml2-devel
+	      - zlib
+	      - zlib-devel
+	      - libcurl
+	      - libcurl-devel
+	
+	php-source-install:
+	  file.managed:
+	    - name: /usr/local/src/php-5.6.9.tar.gz
+	    - source: salt://modules/php/files/php-5.6.9.tar.gz
+	    - user: root
+	    - group: root
+	    - mode: 755
+	  cmd.run:
+	    - name: cd /usr/local/src && tar zxf php-5.6.9.tar.gz && cd php-5.6.9&&  ./configure --prefix=/usr/local/php-fastcgi --with-pdo-mysql=mysqlnd --with-mysqli=mysqlnd --with-mysql=mysqlnd --with-jpeg-dir --with-png-dir --with-zlib --enable-xml  --with-libxml-dir --with-curl --enable-bcmath --enable-shmop --enable-sysvsem  --enable-inline-optimization --enable-mbregex --with-openssl --enable-mbstring --with-gd --enable-gd-native-ttf --with-freetype-dir=/usr/lib64 --with-gettext=/usr/lib64 --enable-sockets --with-xmlrpc --enable-zip --enable-soap --disable-debug --enable-opcache --enable-zip --with-config-file-path=/usr/local/php-fastcgi/etc --enable-fpm --with-fpm-user=www --with-fpm-group=www && make && make install
+	    - require:
+	      - file: php-source-install
+	      - user: www-user-group
+	    - unless: test -d /usr/local/php-fastcgi
+	
+	pdo-plugin:
+	  cmd.run:
+	    - name: cd /usr/local/src/php-5.6.9/ext/pdo_mysql/ && /usr/local/php-fastcgi/bin/phpize && ./configure --with-php-config=/usr/local/php-fastcgi/bin/php-config &&  make&& make install
+	    - unless: test -f /usr/local/php-fastcgi/lib/php/extensions/*/pdo_mysql.so
+	    - require:
+	      - cmd: php-source-install
+	
+	php-fpm:
+	  file.managed:
+	    - name: /usr/local/php-fastcgi/etc/php-fpm.conf
+	    - source: salt://modules/php/files/php-fpm.conf.default
+	    - user: root
+	    - group: root
+	    - mode: 644
+	
+	php-fastcgi-service:
+	  file.managed:
+	    - name: /etc/init.d/php-fpm
+	    - source: salt://modules/php/files/init.d.php-fpm
+	    - user: root
+	    - group: root
+	    - mode: 755
+	  cmd.run:
+	    - name: chkconfig --add php-fpm
+	    - unless: chkconfig --list | grep php-fpm
+	    - require:
+	      - file: php-fastcgi-service</pre>
+2. memcache安装状态文件
+	<pre>cat /srv/salt/prod/modules/php/php-memcache.sls 
+	include:
+	  - modules.php.install
+	
+	memcache-plugin:
+	  file.managed:
+	    - name: /usr/local/src/memcache-2.2.7.tgz
+	    - source: salt://modules/php/files/memcache-2.2.7.tgz
+	    - user: root
+	    - group: root
+	    - mode: 755
+	  cmd.run:
+	    - name: cd /usr/local/src && tar zxf memcache-2.2.7.tgz && cd memcache-2.2.7&& /usr/local/php-fastcgi/bin/phpize && ./configure --enable-memcache --with-php-config=/usr/local/php-fastcgi/bin/php-config &&  make&& make install
+	    - unless: test -f /usr/local/php-fastcgi/lib/php/extensions/*/memcache.so
+	    - require:
+	      - file: memcache-plugin
+	      - cmd: php-source-install</pre>	    
+3. redis安装状态文件
+	<pre># cat /srv/salt/prod/modules/php/php-redis.sls    
+	include:
+	  - modules.php.install
+	
+	redis-plugin:
+	  file.managed:
+	    - name: /usr/local/src/redis-2.2.7.tgz
+	    - source: salt://modules/php/files/redis-2.2.7.tgz
+	    - user: root
+	    - group: root
+	    - mode: 755
+	  cmd.run:
+	    - name: cd /usr/local/src && tar zxf redis-2.2.7.tgz && cd redis-2.2.7&& /usr/local/php-fastcgi/bin/phpize && ./configure --with-php-config=/usr/local/php-fastcgi/bin/php-config &&  make&& make install
+	    - unless: test -f /usr/local/php-fastcgi/lib/php/extensions/*/redis.so
+	    - require:
+	      - file: redis-plugin
+	      - cmd: php-source-install</pre>
+4. 业务引用
+	<pre># cat /srv/salt/prod/bbs/web.sls               
+	include:
+	  - modules.php.install
+	  - modules.php.php-memcache
+	  - modules.php.php-redis
+	  - modules.nginx.service
+	bbs-php:
+	  file.managed:
+	    - name: /usr/local/php-fastcgi/etc/php.ini
+	    - source: salt://bbs/files/php.ini-production
+	    - user: root
+	    - group: root
+	    - mode: 644
+	  service.running:
+	    - name: php-fpm
+	    - enable: True
+	    - require:
+	      - cmd: php-fastcgi-service
+	    - watch:
+	      - file: bbs-php
+	
+	web-bbs:
+	  file.managed:
+	    - name: /usr/local/nginx/conf/vhost_online/nginx-bbs.conf
+	    - source: salt://bbs/files/nginx-bbs.conf
+	    - user: root
+	    - group: root
+	    - mode: 644
+	    - require:
+	      - service: bbs-php
+	    - watch_in:
+	      - service: nginx-service</pre>
+####1.6 nginx服务
+1. 安装状态文件
+	<pre># cat /srv/salt/prod/modules/nginx/install.sls 
+	include:
+	  - modules.user.www
+	  - modules.pkg.make
+	  - modules.pcre.install
+	nginx-source-install:
+	  file.managed:
+	    - name: /usr/local/src/nginx-1.9.1.tar.gz
+	    - source: salt://modules/nginx/files/nginx-1.9.1.tar.gz
+	    - user: root
+	    - group: root
+	    - mode: 755
+	  cmd.run:
+	    - name: cd /usr/local/src && tar zxf nginx-1.9.1.tar.gz && cd nginx-1.9.1&& ./configure --prefix=/usr/local/nginx --user=www --group=www --with-http_ssl_module --with-http_stub_status_module --with-file-aio --with-http_dav_module --with-pcre=/usr/local/src/pcre-8.37 && make && make install && chown -R www:www /usr/local/nginx
+	    - unless: test -d /usr/local/nginx
+	    - require:
+	      - user: www-user-group
+	      - file: nginx-source-install
+	      - pkg: make-pkg</pre>
+2. 服务管理文件
+	<pre># cat /srv/salt/prod/modules/nginx/service.sls
+	include:
+	  - modules.nginx.install
+	
+	nginx-init:
+	  file.managed:
+	    - name: /etc/init.d/nginx
+	    - source: salt://modules/nginx/files/nginx-init
+	    - mode: 755
+	    - user: root
+	    - group: root
+	  cmd.run:
+	    - name: chkconfig --add nginx
+	    - unless: chkconfig --list | grep nginx
+	    - require:
+	      - file: nginx-init
+	
+	nginx-conf:
+	  file.managed:
+	    - name: /usr/local/nginx/conf/nginx.conf
+	    - source: salt://modules/nginx/files/nginx.conf
+	    - user: www
+	    - group: www
+	    - mode: 644 
+	
+	nginx-service:
+	  service.running:
+	    - name: nginx
+	    - enable: True
+	    - reload: True
+	    - require:
+	      - cmd: nginx-init
+	    - watch:
+	      - file: nginx-conf
+	      - file: nginx-online
+	
+	nginx-online:
+	  file.directory:
+	    - name: /usr/local/nginx/conf/vhost_online
+	 
+	nginx-offline:
+	  file.directory:
+	    - name: /usr/local/nginx/conf/vhost_offline</pre>
+####1.7 pcre
+1. 安装状态文件
+	<pre># cat /srv/salt/prod/modules/pcre/install.sls 
+	pcre-source-install:
+	  file.managed:
+	    - name: /usr/local/src/pcre-8.37.tar.gz
+	    - source: salt://modules/pcre/files/pcre-8.37.tar.gz
+	    - user: root
+	    - group: root
+	    - mode: 755
+	  cmd.run:
+	    - name: cd /usr/local/src && tar zxf pcre-8.37.tar.gz && cd pcre-8.37 && ./configure --prefix=/usr/local/pcre && make && make install
+	    - unless: test -d /usr/local/pcre
+	    - require:
+	      - file: pcre-source-install</pre>
+####1.8 待添加
+####1.9 待添加
 ##问题汇总
 1. `SaltRenderError: Jinja variable 'Zabbix_Server' is undefined`
 	变量未定义或变量名不统一，检查后统一：
@@ -1106,3 +1338,119 @@ __job管理的2种方法：__
 	yum update</pre>
 4. `No matching sls found for 'modules.keepalived.install' in env 'prod`
 	状态文件路径有问题，或不匹配
+##salt其他架构
+1. 无master架构
+	1. 使用salt-call命令
+		1. 关闭minion   
+		- 1.1 修改minion中的配置为本地
+		`file_client: local`,然后配置本地的`file_roots`和`pillar_roots` 可以实现salt-master的安装
+ 		- 1.2 编写sls
+ 		- salt-call  --local state.highstate
+2. 多master架构(高可用)
+	>关注的问题：keys master minion
+	- 配置方法
+		在minion的配置文件修改master的IP
+		<pre>master:
+		  - ip1
+		  - ip2</pre>
+	- NFS共享方法
+		- keys master minion
+		- files_roots
+		- pillar_roots
+	- sls使用git或者svn管理
+##salt syndic
+相当于salt的高性能
+
+	1. salt Syndic必须运行在一个master上  
+	2. Syndic要连接在另外一个master上
+
+实践：  
+>1. 安装syndic  
+	`yum install -y salt-syndic`  
+>2. 修改一台master配置文件，指向另一台master  
+	找到`#syndic_master: masterofmaster`,将`masterofmaster`的改为优先级更高的master的IP地址
+
+>3. 重启服务
+	<pre>systemctl restart salt-master
+	systemctl start salt-syndic</pre>
+>4. 高优先级salt-master的修改，找到以下内容，修改其值为`True`
+	`order_masters: True`  
+**重点： syndic的file_roots和pillar_roots必须与高级master一致。缺点是master并不知道自己有多个minion**
+##salt-ssh
+- 作用
+	>可以在不安装minion的时候用ssh来执行，在执行速度上有差异，minion是并行的，而ssh是串行执行的
+- 安装  
+	`yum install salt-ssh -y`
+- 配置文件中配置要管理的主机信息
+	<pre># cat /etc/salt/roster   
+	# Sample salt-ssh config file
+	#web1:
+	#  host: 192.168.42.1 # The IP addr or DNS hostname
+	#  user: fred         # Remote executions will be executed as user fred
+	#  passwd: foobarbaz  # The password to use for login, if omitted, keys are used
+	#  sudo: True         # Whether to sudo to root, not enabled by default
+	#web2:
+	#  host: 192.168.42.2
+	linux-node2.oldboy.com:
+	  host: 10.0.0.171
+	  user: root
+	  port: 52113</pre>
+- 验证keys  
+	`salt-ssh 'linux-node2*' test.ping -i `
+- 通过salt-ssh执行命令  
+	`salt-ssh '*' -r 'ifconfig'`
+- 其他作用
+	>可以辅助升级minion客户端
+##salt-API
+- 官方文档
+	[https://www.unixhot.com/docs/saltstack/ref/netapi/all/salt.netapi.rest_cherrypy.html#a-rest-api-for-salt](https://www.unixhot.com/docs/saltstack/ref/netapi/all/salt.netapi.rest_cherrypy.html#a-rest-api-for-salt)
+- 使用流程
+	- https证书
+		>1. 生成用户和密码：
+		>`useradd -M -s /sbin/nologin saltapi`
+		>`echo 'saltapi'|passwd saltapi --stdin`  
+		>生成https证书
+		>`cd /etc/pki/tls/certs/`
+		>`make testcert`
+		>`cd /etc/pki/tls/private/`
+		>`openssl rsa -in localhost.key -out salt_nopass.key`这个是不要密码的key
+		>2. 安装CherryPy模块
+		>`pip install CherryPy=3.2.6`
+		>3. 修改salt-master的配置文件
+		>`#default_include: master.d/*.conf`去掉注释
+		>4. 配置api.conf(/etc/salt/master.d)
+		><pre>cat api.conf
+		>rest_cherrypy:
+		>   host: 10.0.0.160
+		>   port: 8000
+		>   ssl_crt: /etc/pki/tls/certs/localhost.crt
+		>   ssl_key: /etc/pki/tls/private/salt_nopass.key</pre>
+		>5. 使用PAM验证(/etc/salt/master.d)
+		><pre>external_auth:
+		>   pam:
+		>     saltapi:
+		>       - .*
+		>       - '@wheel'
+		>       - '@runner'</pre>
+		>  
+	- 配置文件
+	- 验证，使用PAM验证
+	- 启动salt-api  
+		`systemctl start salt-api`
+- 常用
+	1. 获取token
+		<pre>curl -sSk https://localhost:8000/login \
+     	-H 'Accept: application/x-yaml' \
+     	-d username=saltdev \
+     	-d password=saltdev \
+     	-d eauth=auto</pre>
+	2. 利用token获取grains
+		<pre>curl -sSk https://localhost:8000/minions/linux-node2.oldboy.edu \
+    	-H 'Accept: application/x-yaml' \
+    	-H 'X-Auth-Token: 697adbdc8fe971d09ae4c2a3add7248859c87079'\</pre> 
+	3. 查看存活
+		<pre>curl -sSk https://localhost:8000/minions/linux-node2.oldboy.edu \
+    	-H 'Accept: application/x-yaml' \
+    	-H 'X-Auth-Token: 697adbdc8fe971d09ae4c2a3add7248859c87079' \
+		-d client='runner' \
+		-d fun='manage.status'</pre> 
