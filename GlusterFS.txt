@@ -1,0 +1,27 @@
+##GlusterFS
+- 什么是GlusterFS
+	>分布式存储系统
+- 实验要求
+	- 电脑一台
+	- 4台虚拟机
+	- 最小安装
+	- 关闭iptables和防火墙
+	- 预装glusterfs软件包
+		<pre>yum install -y centos-release-glusterfs37.noarch
+		yum --enablerepo=centos-gluster*-test install glusterfs-server gluster-cli glusterfs-geo-replication</pre>
+###基础理论知识
+- 分布式系统的出现
+	>有效的解决了数据的存数和管理难题，将固定于某个地点的某个文件系统，扩展到多个地点/多个文件系统，众多的节点组成一个文件系统网络。
+- 概述
+	>GlusterFS是scale-out存储解决方案的核心，是一个开源的分布式文件系统，具有强大的横向扩展能力，通过扩展能够支持PB存储容量和处理数千客户端。它是结果TCP/IP或InfiniBand RDMA网络将物理分布的存储资源聚集在一起，使用单一全局命名来管理数据
+- 应用场景
+	- media
+		- 文档、图片、音频、视频
+	- shared storage
+		- 云存储、虚拟化存储、HPC
+	- Big data
+		- 日志文件、RFID数据
+
+###安装及配置
+###分布式存储
+###生产中常见故障处理
