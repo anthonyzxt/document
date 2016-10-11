@@ -7,8 +7,8 @@
 	- 最小安装
 	- 关闭iptables和防火墙
 	- 预装glusterfs软件包
-		<pre>yum install -y centos-release-glusterfs37.noarch
-		yum --enablerepo=centos-gluster*-test install glusterfs-server gluster-cli glusterfs-geo-replication</pre>
+		<pre>yum install -y centos-release-gluster37.noarch
+		yum --enablerepo=centos-gluster*-test install glusterfs-server gluster-cli glusterfs-geo-replication -y</pre>
 ###基础理论知识
 - 分布式系统的出现
 	>有效的解决了数据的存数和管理难题，将固定于某个地点的某个文件系统，扩展到多个地点/多个文件系统，众多的节点组成一个文件系统网络。
@@ -23,5 +23,62 @@
 		- 日志文件、RFID数据
 
 ###安装及配置
+- 准备工作
+	- 修改主机名
+		- /etc/syconfig/network
+		- /etc/hosts
+	- 测试虚拟机名称规划
+		- 10.0.0.200 mystorage1
+		- 10.0.0.201 mystorage2
+		- 10.0.0.202 mystorage3
+		- 10.0.0.203 mystorage4
+	- 每台虚拟机上添加hosts文件以便解析
+- 配置工作
+	- 版本查看
+		<pre># glusterfs -V
+		glusterfs 3.7.15 built on Aug 30 2016 15:33:03</pre>
+	- 服务管理
+		<pre>service glusterd start
+		service glusterd stop
+		chkconfig glusterd on</pre>
+	- 存储主机加入信任存储池
+		<pre>gluster peer probe mystorage02
+		查看状态
+		gluster peer status</pre>
+	- 安装XFS支持包  
+		`yum install -y xfsprogs`
+	- 格式化测试磁盘为XFS格式  
+		`mkfs.xfs -f /dev/sdb`
+	- 挂着磁盘
+		<pre>mkdir -p /storage/brick1
+		mount /dev/sdb /storage/brick1</pre>
+	- 设置开机挂载
+		- `vi`添加到`/etc/fstab`文件理
+			<pre>vi /etc/fastab
+			/dev/sdb	/storage/brick1 xfs defaults 0 0
+			/dev/sdc	/storage/brick2 xfs defaults 0 0</pre>
+		- `echo`到`/etc/fstab`
+			<pre>echo "/dev/sdb /storage/brick1 xfs defaults 0 0">>/etc/fastab
+			mount -a</pre>
+	- 创建volume及其他操作
+		- distributed,分布式卷，文件通过hash算法随机的分布到由bircks组成的卷上
+		- replicated:复制式卷，类似raid1,replica数必须等于volume中brick所包含的存储服务器数，可用性高
+		- striped：条带式卷，类似raid0，stripe数必须等于volume中brick所包含的存储服务器数，文件被分成数块，以Round Robin的方式存储在bricks中，并发粒度是数据块，大文件性能好
+		- distributed striped：volume中brick所包含的存储服务器数必须是stripe的倍数（>=2倍），兼顾两者的功能
+		- distributed replicated：分布式的复制卷，volume中brick所包含的存储服务器数量必须是repilca的倍数（>=2倍），兼顾两者的功能
+		- 创建分布卷命令
+			`gluster volume create gv1 mystorage01:/storage/brick1 mystorage02:/storage/brick1 force`
+			>`gv1`：自定义卷名
+			>`mystorage01:/storage/brick1`为被加入卷的主机分区路径，这个命令是将所有主机的用作分布式文件系统的分区整合在一起
+		- 启动卷分区  
+			`gluster volume start gv1`
+		- 查看卷轴信息  
+			`gluster volume info`
+		- 挂载到目录  
+			`mount -t glusterfs 127.0.0.1:/gv1 /mnt`
+		- NFS格式的挂着方式  
+			`mount -o mountproto=tcp -t nfs 10.0.0.201:gv1 /mnt`
 ###分布式存储
+	- 创建分布式卷
+		<pre>gluster volume create 2 replica 2 mystorage03:/storage/brick1 mystorage04:/storage/brick1 force</pre>
 ###生产中常见故障处理
