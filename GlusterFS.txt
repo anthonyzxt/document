@@ -78,7 +78,10 @@
 			`mount -t glusterfs 127.0.0.1:/gv1 /mnt`
 		- NFS格式的挂着方式  
 			`mount -o mountproto=tcp -t nfs 10.0.0.201:gv1 /mnt`
+	- 创建分布式复制卷
+		<pre>gluster volume create 2 replica 2 mystorage03:/storage/brick1 mystorage04:/storage/brick1 force
+		gluster volume start</pre>
 ###分布式存储
-	- 创建分布式卷
-		<pre>gluster volume create 2 replica 2 mystorage03:/storage/brick1 mystorage04:/storage/brick1 force</pre>
+
+
 ###生产中常见故障处理
