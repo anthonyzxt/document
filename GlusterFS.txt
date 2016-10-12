@@ -58,7 +58,7 @@
 			/dev/sdb	/storage/brick1 xfs defaults 0 0
 			/dev/sdc	/storage/brick2 xfs defaults 0 0</pre>
 		- `echo`到`/etc/fstab`
-			<pre>echo "/dev/sdb /storage/brick1 xfs defaults 0 0">>/etc/fastab
+			<pre>echo "/dev/sdb /storage/brick1 xfs defaults 0 0">>/etc/fstab
 			mount -a</pre>
 	- 创建volume及其他操作
 		- distributed,分布式卷，文件通过hash算法随机的分布到由bircks组成的卷上
@@ -79,9 +79,71 @@
 		- NFS格式的挂着方式  
 			`mount -o mountproto=tcp -t nfs 10.0.0.201:gv1 /mnt`
 	- 创建分布式复制卷
-		<pre>gluster volume create 2 replica 2 mystorage03:/storage/brick1 mystorage04:/storage/brick1 force
+		<pre>gluster volume create gv2 replica 2 mystorage03:/storage/brick1 mystorage04:/storage/brick1 force
 		gluster volume start</pre>
-###分布式存储
+	- 创建分布式条带卷
+		- 新增1块测试硬盘，格式化  
+	`mkfs.xfs -f /dev/sdc`
+		- 设置开机自动挂载
+			<pre>echo "/dev/sdc /storage/brick2 xfs defaults 0 0">>/etc/fstab
+		mount -a</pre>
+		- 创建命令
+			<pre>gluster volume create gv3 stripe 2 mystorage03:/storage/brick2 mystorage04:/storage/brick2</pre>
+			>`stripe 2`为文件被打散的份数，这里被打散为2份
+		- 挂载分布式卷
+			<pre>mkdir /gv{1..3}
+			mount -t glusterfs 127.0.0.1:gv1 /gv1	
+			mount -t glusterfs 127.0.0.1:gv2 /gv2
+			mount -t glusterfs 127.0.0.1:gv3 /gv3</pre>
+		-测试
+			<pre>cd /gv3
+			dd if=/dev/zero of=/gv3/10m.file bs=1024 count=10000
+			dd if=/dev/zero of=/gv3/20m.file bs=1024 count=20000</pre>
+		- 观察结果
+			<pre>[root@mystorage03 ~]# ll /storage/brick2 -h
+			total 15M
+			-rw-r--r-- 2 root root 4.9M Oct 12 11:08 10m.file
+			-rw-r--r-- 2 root root 9.8M Oct 12 11:09 20m.file
+
+			[root@mystorage04 ~]# ll -h /storage/brick2
+			total 15M
+			-rw-r--r-- 2 root root 4.9M Oct 12 11:09 10m.file
+			-rw-r--r-- 2 root root 9.8M Oct 12 11:09 20m.file</pre>
+	- 增加磁盘到指定的卷 ：扩容
+		<pre>gluster volume stop gv2
+		gluster volume add-brick gv2 replica 2 mystorage01:/storage/brick2 mystorage02:/storage/brick2 force
+		gluster volume start gv2
+		umount /gv2
+		mount -t glusterfs 127.0.0.1:gv2 /gv2</pre>
+		>新增的磁盘里边是没有数据的，需要重新做磁盘数据平衡
+	- 磁盘数据平衡
+		<pre>gluster volume rebalance gv2 start
+		gluster volume rebalance gv2 status</pre>
+		>这个是实际生产中很少用到，如果需要的话，直接增加一个volume即可。
+	- 移除brick volume
+		>这个是实际生产中很少用到，了解即可。另brick移除的时候也是成对的移除
+		<pre>移除brick：
+		gluster volume remove-brick gv2 replica 2 mystorage01:/storage/brick2 mystorage02:/storage/brick2 force
+		移除volume：
+		gluster volume delete gv2</pre>
+###构建生产分布式存储
+1. 硬件要求
+	1. 一般选2U机型，磁盘SATA 4T，如I/O要求高，可以采购SSD硬盘
+	2. 建议做raid10，出于空间的考虑的话，可以做raid5，最好有热备盘1-2个
+	3. 服务器多的话，配置做好一样
+2. 系统要求和分区划分
+	1. 最好安装64的系统
+3. 网络环境
+	1. 建议全部千兆环境，gluster服务最好有2块网卡，1块网卡绑定供gluster使用，剩下一块给管理网络IP,网卡最好是万兆
+4. 服务器摆放
+	1. 建议分柜摆放
+	2. 服务器间磁盘做配对
+5. 构建高性能、高可用存储
+	1. 建议采用分布式存储，因为数据有备份，相对安全
+	2. 条带式有一定的数据风险
+	3. 开启防火墙端口，在有开防火墙的情况下：
+		<pre>iptables -I INPUT -p tcp --dport 24007:24011 -j ACCEPT
+		iptables -I INPUT -p tcp --dport 38465:38485 -j ACCEPT</pre>
 
 
 ###生产中常见故障处理
