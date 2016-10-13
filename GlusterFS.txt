@@ -144,6 +144,45 @@
 	3. 开启防火墙端口，在有开防火墙的情况下：
 		<pre>iptables -I INPUT -p tcp --dport 24007:24011 -j ACCEPT
 		iptables -I INPUT -p tcp --dport 38465:38485 -j ACCEPT</pre>
-
-
+6. 优化参数
+	1. Auth.allow：IP访问授权 默认值：* 合法值：IP地址
+	2. Cluster.min-free-disk：剩余磁盘空间阀值 默认值：20% 合法值：百分比
+	3. Cluster.strip-block：条带大小  默认值：128KB 合法值：字节
+	4. network.frame-timeout：请求等待时间 默认值：1800s  合法值：0-1800
+	5. network.ping-timeout:客户等待时间 默认值：42s 合法值：0-42
+	6. Nfs.disabled:关闭nfs服务	默认值：off 合法值：off|on
+	7. Performance.io-thread-count:IO线程数 默认值：16 合法值：0-65
+	8. Performance.cache-refresh-timeout:缓存校验周期 默认值：1s 合法值：0-61
+	9. 	Performance.cache-size:读缓存大小 默认值：32MB 合法值：字节
+	10. Performance.quick-read：优化读取小文件的性能
+	11. Performance.read-ahead:用预读取的方式提高读取的性能，有利于频繁访问的文件
+	12. Performance.write-behind:在读写数据时，先写入缓存，再写人硬盘，以提高写入的性能。谨慎调整，以免虚拟机挂掉或其他应用出现readonly情况
+	13. Performance.io-cache：缓存已经被读过
+	>这些参数一般是结合使用，比如IO-cache read-ahead io-thread-count cache-refresh-timeout
+7. 调整方法
+	<pre>gluster volume set <卷><参数>
+	gluster volume set gv2 performance.read-ahead on
+	gluster volume set gv2 performance.cache-size 256MB</pre>
+8. 监控
+	>主要是zabbix监控。
+	1. 监控节点在不在线(以下基于分布式复制)
+		`gluster volume status nfsp`
+	2. 启动完全修复
+		`gluster volume heal gv2 full`
+	3. 查看需要修复的文件
+		`gluster volume heal gv2 info`
+	4. 查看修复成功的文件
+		`gluster volume heal gv2 info healed`
+	5. 查看修复失败的文件
+		`gluster volume heal gv2 info heal-failed`
+	6. 查看脑裂情况
+		`gluster volume heal gv2 info split-brain`
+9. 磁盘配额，针对目录
+	<pre>gluster volume quota gv2 enable --激活配额功能
+	gluster volume quota gv2 disable --关闭配额功能
+	gluster volume quota gv2 limit-usage /data 10GB --/gv2/data目录限制
+	gluster volume quota gv2 list --quota列表
+	gluster volume quota gv2 list /data --限制目录的quota信息
+	gluster volume quota gv2 features.quota-timeout 5 --设置信息的超时时间
+	gluster volume quota gv2 remove /data --删除某个目录的quota设置</pre>
 ###生产中常见故障处理
