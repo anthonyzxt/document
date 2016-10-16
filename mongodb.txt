@@ -6,11 +6,288 @@
 	意思是数据被分组存储在数据集中被称为一个集合(collection),每个集合在数据库中都有一个唯一的表示名，并且可以包含无限数目的文档，类似关系数据库的表，但不需要定义任何模式
 	- 模式自由
 	没有行和列的概念
-	- 文档型(documents)
-	key-value对的集合
+	- 文档型(documents)  
+	key-value(BSON)对的集合
+- 对应术语     
+
+| RDBMS        | MongoDB           |
+| ------------- |:-------------:|
+| 数据库 | 数据库 |
+| 表格  | 集合 |
+| 行 | 文档  |
+|表联合|嵌入文档
+|主键 |主键 (MongoDB 提供了 key 为 _id )
+
+- 数据库服务和客户端
+
+	Mysqld/Oracle 	mongod  
+	mysql/sqlplus 	mongo  
+
 - 场景
 	- 持久化缓存层
 	- 高效的实时性
 	- 用于对象及JSON数据的存储
 	- 高伸缩性的场景
 	- 大尺寸，低价值的数据存储
+- mongodb不适用场景
+	- 高度事务性系统
+	- 商业智能应用
+	- 复杂的跨表级联查询
+- 工作方式
+	- 使用内存映射文件进行数据管理。把所有空闲内存当缓存使用，而且不能指定内存大小
+	- mongodb数据空间采用预分配。为每个数据库分配一系列文件，每个数据文件预分配一个大小，第一个文件名字为xxx.0,大小64M，第二个文件名字为xxx.1，大小128M，第三个文件名字为xxx.2，大小为256M，以此类推。在32位系统下支持的最大文件为2G。随着数据量的递增，在数据库工作目录下会看到不断递增的文件。
+	- mongodb没有自增序列。mongodb中存储的文档必须要有一个_id键，这个值可以是任何类型的，默认是objectid对象。当BSON对象插入到数据库时，会自动生成一个objectid对象作为_id插入到集合中作为该文档的主键。在一个集合里，每个文档都有唯一的_id值，来确保集合里每个文档都能被唯一标识。如果有两个集合的话，两个集合都可以有一个值为123的_id键，但每个集合里只能有一个_id是123的文档。_id值由4字节的时间戳，3字节的机器号，2字节的进程id和3自己的自增计数组成。_id值也可以手工生成，只要确保唯一性即可。
+	- 每个插入的BSON对象大小不能超过4M，否则需要使用GridFS来存储。
+	- 删除数据后不会释放空间。
+	-  use database_name时，并不产生新的数据库，只有插入文档时产生
+- mongodb数据类型
+	- mongodb支持基本的数据类型string、integer、boolean、double、null、array、object
+- mongodb命令规则
+	1. 集合名不能为空
+	2. 集合名不能含有空字符，空字符表示集合名的结尾
+	3. 集合名不能以system.开头。system为系统保留的`system.users`这个集合保存数据库的用户信息  `system.namespaces`保存着所有数据库集合的信息   `system.indexes`索引文件  
+	`system.profile`数据库的相关信息
+	4. 用户创建的集合名字不能含有保留字符$
+- 数据库命名规则
+	- 不能是空字符串
+	- 不能含有‘’，空格，.，$,/,\,空字符
+	- 应全部小写
+	- 最多64个字节
+- 特殊数据库
+	- admin
+		>root数据库，用户添加到这个数据库，一些特定的命令也只能从这个数据库运行，比如列出所有数据库或关闭数据库（需要在启用验证模式下）
+	- local
+		>这个数据库永远不会被复制，用来存储限于本地服务器的集合
+	- config
+		>用于保存分片的相关信息
+- mongodb驱动连接
+	- 格式
+		<pre>mongodb://[username:password@]host1[:port1][host2[:port2]...[/database][?options]]
+		- mongodb:// 标示标准连接方式
+		- username:password 可选的，连接mongodb的用户名和密码
+		- hostX 要连接的服务器ip
+		- portX 要连接的服务器端口
+		- /database 要登录的数据库名
+		- ?options 连接可选选项，采用kv方式，每对kv值用&或;分割</pre>
+	- options选项
+		- Replica set
+			>replicaSet=name 驱动程序将验证连接的replicaset的名字与name是否相匹配，意味着指定的主机地址，都可以连接replicaSet中所有的成员
+		- Single server
+			>slaveOk=true|false true从可以读。默认情况下从不可写不可读的。
+		- 其他设置  
+			a. safe=true|false  
+			true为了保证更新成功，驱动程序将每次更新后发送getLastError命令。默认是false。  
+			b. w=n  
+			mongodb集群中,n台服务器成功写入算更新成功。设置了此项后，safe=true隐式启用。  
+			c. wtimeoutMS=ms  
+			写超时时间。设置了此项后，safe=true隐式启用。
+			d. fsync=true|false  
+			true: 每次更新完后进行fsync操作确保数据刷新到磁盘上。设置了此项后，safe=true隐式启用。  
+			e. journal=true|false  
+			true: Sync to journal。设置了此项后，safe=true隐式启用。  
+			d. connectTimeoutMS=ms  
+			连接超时时间。  
+			e. socketTimeoutMS=ms  
+			socket连接超时时间。
+- 连接实例
+	<pre>
+	mongodb://localhost
+	mongodb://user:password@localhost
+	mongodb://user:password@localhost/database
+	mongodb://example1.com:27017,example2.com:27017
+	mongodb://localhost,localhost:27018,localhost:27019
+	mongodb://host1,host2,host3/?slaveOk=true
+	mongodb://localhost/?safe=true
+	mongodb://host1,host2,host3/?safe=true;w=2;wtimeoutMS=2000
+	mongodb://rs1.example.com:27017,rs2.example.com:27017/?replicaSet=myReplSetName
+	mongodb://localhost/?journal=true&w=majority&wTimeoutMS=20000</pre>
+- PHP驱动连接实例
+	<pre>$m = new MongoClient("mongodb://localhost/?journal=true&w=majority&wTimeoutMS=20000");
+	$m = new MongoClient("mongodb://rs1.example.com:27017,rs2.example.com:27017/?replicaSet=myReplSetName"));
+	$m = new MongoClient("mongodb://rs1.example.com:27017", array("replicaSet" => "myReplSetName"));
+	$m = new MongoClient("mongodb://rs1.example.com:27017,rs2.example.com:27017", array("replicaSet" => "myReplSetName","wTimeoutMS"=>20000));</pre>
+##2. 安装及参数说明
+1. 安装
+	<pre>curl -O https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-3.0.6.tgz
+	tar -zxvf mongodb-linux-x86_64-3.0.6.tgz 
+	mv  mongodb-linux-x86_64-3.0.6/ /usr/local/mongodb
+	定义执行路径：
+	export PATH=(mongodb-install-directory)/bin:$PATH
+	mongodb-install-directory为你 MongoDB 的安装路径
+	</pre>
+2. 创建数据库目录  
+	MongoDB的数据存储在data目录的db目录下，但是这个目录在安装过程不会自动创建，所以你需要手动创建data目录
+	`mkdir -p /data/db
+3. 创建配置文件
+	<pre># vim /usr/local/mongodb/etc/mongodb_27017.cnf
+	dbpath = /data/mongodb_27017/data
+	directoryperdb = true
+	port = 27017
+	bind_ip = 10.1.10.155
+	rest = true
+	fork = ture
+	logappend = true
+	logpath = /data/weblogs/mongodb_log/mongodb_27017.log
+	replSet = ttlsa
+	journal = true
+	oplogSize = 2000
+	nohttpinterface = true
+	cpu = true</pre>
+3. MongoDB后台管理 Shell  
+	`/usr/local/mongodb/bin/mongo`
+4. MongoDb web 用户界面  
+	`/usr/local/mongodb/bin/mongo --dbpath=/data/db --rest`  
+	如果你的MongoDB运行端口使用默认的27017，你可以在端口号为28017访问web用户界面，即地址为：http://localhost:28017
+5. 启动服务
+	`/usr/local/mongodb/bin/mongod -f /etc/mongodb_27017.cnf`
+6. 参数说明  
+	--dbpath 指定数据库的目录。每个mongod进程都需要有独立的数据目录。当mongod启动时，会在数据目录中创建mongod.lock文件，用于防止其他mongod进程使用该数据目录。  
+	--port 指定监听的端口,默认是27017 ,Web管理端口在这个port的基础上+1000，默认情况下web管理端口是开启的。--nohttpinterface关闭管理接口  
+	--bind_ip 绑定监听的IP  
+	--directoryperdb 为每个db创建一个独立子目录  
+	--logpath 指定日志输出目录。需要对文件夹要有可写的权限，日志文件不存在时自动创建，存在时将会覆盖掉以前的记录。如果要保留原有日志，需要启用--logappend选项。  
+	--logappend 指定日志生成方式(追加/覆盖)  
+	--pidfilepath 指定进程文件路径，如果不指定，将不产生进程文件  
+	--keyFile 集群模式的关键标识  
+	--cpu 显示CPU和IO的利用率  
+	--journal 开启日志功能，通过保存操作日志来降低单机故障的恢复时间，在1.8 版本后正式加入取代在1.7.5版本中的dur参数。  
+	--ipv6 启用IPV6支持  
+	--nssize 指定.ns 文件的大小，单位MB，默认是16M，最大是 2GB  
+	--maxConns 最大的并发连接数  
+	--notablescan 不允许进行表扫描  
+	--quota 限制每个数据库的文件个数，默认是 8个  
+	--quotaFiles 每个数据库的文件个数，配合—quota参数  
+	--noprealloc 关闭数据文件的预分配功能  
+	--fork 以守护进程方式运行  
+	--syncdelay 系统同步刷新磁盘的时间，单位为秒，默认是60秒。  
+	--directoryperdb 每个db存放在单独的目录中，建议设置该参数。与MySQL的独立表空间类似  
+	--repairpath 执行repair时的临时目录。在如果没有开启journal，异常down机后重启，必须执行repair操作。  
+	--rest用来RS中用于webadmin界面中显示RS的状态信息  
+	--oplogSize 用来记录oplog的大小，单位MB，默认硬盘的5%  
+	mongod的参数中，没有设置内存大小相关的参数，是的，MongoDB 使用 os mmap 机制来缓存数据文件数据，自身目前不提供缓存机制。
+8. 查看启动参数
+	<pre># /usr/local/mongodb/bin/mongo 10.1.10.155:27017
+	ttlsa:SECONDARY> use admin
+	switched to db admin
+	ttlsa:SECONDARY> db.runCommand({getCmdLineOpts: 1})</pre> 
+9. 关闭服务
+	<pre>> use admin; 
+	switched to db admin 
+	> db.shutdownServer();
+	或
+	>db.runCommand( “shutdown”);</pre>
+10. 动态更改配置参数
+	> db.adminCommand({setParameter:1, option1: true , ...})
+	> db.adminCommand({setParameter:1, logLevel:4})
+11. 获取mongodb状态信息  
+	`db.serverStatus()`
+12. 查看数据库状态信息  
+	`db.stats()`
+13. 获取当前的进程  
+	`db.currentOp()`
+##3. 工具介绍
+
+bsondump: 将bson格式的文件转储为json格式的数据  
+mongo: 客户端命令行工具，其实也是一个javascript解释器，支持javascript语法  
+mongod: 数据库服务端，每个实例启动一个进程，可以fork为后台运行  
+mongodump/ mongorestore: 数据库备份和恢复工具  
+mongoexport/ mongoimport: 数据导出和导入工具  
+mongofiles: GridFS管理工具，可实现二制文件的存取  
+mongos: 分片路由，如果使用了 sharding 功能，则应用程序连接的是 mongos 而不是mongod  
+mongosniff: 这一工具的作用类似于tcpdump，不同的是他只监控MongoDB 相关的包请求，并且是以指定的可读性的形式输出  
+mongostat: 实时性能监控工具  
+##4. 增删改查
+- 和SQL数据库的对比
+
+|SQL Statement  |  Mongo Query Language|
+|---|---|  
+|INSERT INTO USERS VALUES(1,1)| $db->users->insert(array("a" => 1, "b" => 1));|
+|SELECT a,b FROM users |  $db->users->find(array(), array("a" => 1, "b" => 1));
+|SELECT * FROM users WHERE age=33  |               $db->users->find(array("age" => 33));
+|SELECT a,b FROM users WHERE age=33|                 $db->users->find(array("age" => 33), array("a" => 1, "b" => 1));|
+|SELECT a,b FROM users WHERE age=33 ORDER BY name| $db->users->find(array("age" => 33), array("a" => 1, "b" => 1))->sort(array("name" => 1));
+|SELECT * FROM users WHERE age>33|                    $db->users->find(array("age" => array('$gt' => 33)));
+|SELECT * FROM users WHERE age<33 |                   $db->users->find(array("age" => array('$lt' => 33)));
+|SELECT * FROM users WHERE name LIKE "%Joe%" |        $db->users->find(array("name" => new MongoRegex("/Joe/")));
+|SELECT * FROM users WHERE name LIKE "Joe%"  |       $db->users->find(array("name" => new MongoRegex("/^Joe/")));
+|SELECT * FROM users WHERE age>33 AND age<=40 |       $db->users->find(array("age" => array('$gt' => 33, '$lte' => 40)));
+|SELECT * FROM users ORDER BY name DESC  |           $db->users->find()->sort(array("name" => -1));
+|CREATE INDEX myindexname ON users(name)  |           $db->users->ensureIndex(array("name" => 1));
+|CREATE INDEX myindexname ON users(name,ts DESC)|     $db->users->ensureIndex(array("name" => 1, "ts" => -1));
+|SELECT * FROM users WHERE a=1 and b='q' |            $db->users->find(array("a" => 1, "b" => "q"));
+|SELECT * FROM users LIMIT 10 SKIP 20  |           $db->users->find()->limit(10)->skip(20);
+|SELECT * FROM users WHERE a=1 or b=2 |            $db->users->find(array('$or' => array(array("a" => 1), array("b" => 2))));
+|SELECT * FROM users LIMIT 1        |                 $db->users->find()->limit(1);
+|EXPLAIN SELECT * FROM users WHERE z=3  |           $db->users->find(array("z" => 3))->explain()
+|SELECT DISTINCT last_name FROM users  |           $db->command(array("distinct" => "users", "key" => "last_name"));
+|SELECT COUNT(*y) FROM users           |              $db->users->count();
+|SELECT COUNT(*y) FROM users where AGE > 30  |        $db->users->find(array("age" => array('$gt' => 30)))->count();
+|SELECT COUNT(AGE) from users           |          $db->users->find(array("age" => array('$exists' => true)))->count();
+|UPDATE users SET a=1 WHERE b='q'      |           $db->users->update(array("b" => "q"), array('$set' => array("a" => 1)));
+|UPDATE users SET a=a+2 WHERE b='q'     |            $db->users->update(array("b" => "q"), array('$inc' => array("a" => 2)));
+|DELETE FROM users WHERE z="abc"        |             $db->users->remove(array("z" => "abc"));
+
+- 查询操作
+
+|Operator|Meaning|Example|SQL Equivalent
+|---|---|---|---|
+|$gt           |Greater Than           | “score”:{"$gt”:0}  | >                                 
+|$lt           |Less Than              | “score”:{"$lt”:0}  |  <                                
+|$gte          |Greater Than or Equal   | “score”:{"$gte”:0} | >=                                 
+|$lte          |Less Than or Equal   | “score”:{"$lte”:0} | <=
+|$all          |Array Must Contain All |“skills”:{"$all”:["mongodb”,"python"]}|               N/A
+|$exists       |Property Must Exist|            “email”:{"$exists”:True}|                             N/A
+|$mod         | Modulo X Equals Y  |            “seconds”:{"$mod”:[60,0]} |                           MOD()
+|$ne          | Not Equals|                     “seconds”:{"$ne”:60}|                                 !=
+|$in          | In   |                          “skills”:{"$in”:["c”,"c++"]}|                          IN
+|$nin         | Not In   |                      “skills”:{"$nin”:["php”,"ruby”,"perl"]} |              NOT IN
+|$nor         | Nor |                           “$nor”:[{"language”:"english"},{"country”:"usa"}]|     N/A
+|$or          | Or|                             “$or”:[{"language”:"english"},{"country”:"usa"}]|      OR
+|$size         |Array Must Be Of Size  |        “skills”:{"$size”:3} |                                 N/A
+- 更新操作
+
+
+|Modifier     |Meaning  |  Example
+|---|---|---|
+|$inc         |Atomic Increment| “$inc”:{"score”:1}
+|$set         |Set Property Value |  “$set”:{"username”:"niall"}
+|$unset       |Unset (delete) Property | “$unset”:{"username”:1}
+|$push        |Atomic Array Append (atom)  | “$push”:"emails”:"foo@example.com"}
+|$pushAll     |Atomic Array Append (list) | “$pushall”:|{"emails”:["foo@example.com”,"foo2@example.com"]}
+|$addToSet    |Atomic Append-If-Not-Present | “$addToSet”:"emails”:"foo@example.com"}
+|$pop         |Atomic Array Tail Remove| “$pop”:{"emails”:1}
+|$pull        |Atomic Conditional Array Item Removal | “$pull”:{"emails”:"foo@example.com"}
+|$pullAll     |Atomic Array Multi Item Removal| “$pullAll”:{"emails”:["foo@example.com”, “foo2@example.com"]}
+|$rename     | Atomic Property Rename | “$rename”:{"emails”:"old_emails"}
+
+- 批量插入  
+	`db.test.batchInsert([{"_id":0},{"_id":1},{"_id":2},{"_id":3}])`
+##5. 索引
+>创建太多索引，会导致插入非常慢，同时还会占用很大空间。可以通过explain和hint工具来分析。
+
+1. 查看索引  
+	`db.test_events.getIndexes();`  1表示升序，-1表示降序。
+2. 创建索引
+	<pre>参数：
+	option values default
+	backgroud true/false false
+	dropDups true/false false
+	unique true/false false
+	sparse true/false false
+	命令：
+	db.ttlsa_posts.ensureIndex({pid:1}，{backgroud:true});
+	说明：当有大量数据时，创建索引会非常耗时，可以指定到后台执行，只需指定“backgroud:true”即可</pre>
+##6. 复制原理&复制集
+>mongodb集群：复制，复制集和分片。 强烈建议在生产环境中使用mongodb的复制功能。复制具有故障切换，读扩展，热备份和离线批处理操作。  
+默认情况下，主节点负责客户端所有的读写请求，从节点不可读不可写
+
+1. 工作原理
+	1. 至少需要2个实例，一个主节点：负责处理客户端请求；其余都是从节点：负责复制主节点上的数据。主节点负责记录所有操作oplog，从节点定期轮询主节点获取这些操作，然后对自己的数据副本执行这些操作，从而保证主从节点数据的一致
+	2. 主节点的操作记录称为oplog(operation log),存储在local数据库中（local数据库不会被复制，用来存放复制状态信息的）。oplog中的每个文档代表着主节点上执行的操作。oplog只作为从节点与主节点保持数据同步的机制。
+	3. oplog.rs是一个固定长度的capped collection。默认情况下，64位的实例将使用oplog 5%的可用空间，这个空间将在local数据库中分配，并在服务器启动时预先分配
+	4. 如果从节点落后主节点很远了，oplog日志从节点还没执行完，oplog可能已经轮滚一圈了，那么从节点将会追赶不上主节点了，复制将会停止。从节点需要重新做完整的同步，可以用{resync:1}命令来手动执行重新同步或在启动从节点时指定--autoresync选项让其自动重新同步。重新同步的代价昂贵，应尽量避免，避免的方法就是配置足够大的oplog。
+		<pre>db.oplog.rs.stats()</pre>
+2. 复制
+3. 复制集
+4. 复制认证
+5. 分片
