@@ -1,0 +1,68 @@
+##NFS高可用之DRBD+Heartbeat
+##DRBD简介
+- 工作原理  
+	(DRBD Primary)负责接收数据，把数据写到本地磁盘并发送给另一台主机(DRBD Secondary)。另一个主机再将数据存到自己的磁盘中。目前.
+- 与HA的关系
+	一个DRBD系统由两个节点构成，与HA集群类似，也有主节点和备用节点之分，在带有主要设备的节点上，应用程序和操作系统可以运行和访问DRBD设备（/dev/drbd*）。在主节点写入的数据通过DRBD设备存储到主节点的磁盘设备中，同时，这个数据也会自动发送到备用节点对应的DRBD设备，最终写入备用节点的磁盘设备上，在备用节点上，DRBD只是将数据从DRBD设备写入到备用节点的磁盘中。
+##heartbeat简介
+- 工作原理  
+	最核心的两部分：心跳监测部分和资源接管部分，心跳监测部分可以通过网络链路和串口进行。而且支持链路冗余，它们之间相互发送报文来告诉对方自己当前的状态，在指定的时间内未收到对方发送的报文，那么就认为对方失效，这时需启动资源管理模块来接管运行在对方 主机上的服务或资源。
+
+环境：  
+两台 NFS 服务器，通过 eth1 网卡与内网的其他业务服务器进行通信，eth2网卡主要负责两台 NFS 服务器之间心跳通信，eth3网卡主要负责drbd数据同步的传输。
+
+|角色|主机名|IP地址|
+|---|---|---|
+|primary|nfs01|10.0.0.31/172.16.1.31|
+|slave|nfs2|10.0.0.83/172.16.1.83|
+###配置
+
+- 系统配置
+	- 同步时间  
+		`ntpdate pool.ntp.org`
+	- 修改hosts文件
+		<pre>10.0.0.31 nfs01
+		10.0.0.83 nfs2</pre>
+	- 增加主机间路由
+		>增加相应的心跳线和drbd数据传输线路的端到端的静态路由条目。目的是为了让心跳检测和数据同步不受干扰。
+		<pre>route add -host 172.16.1.31 eth1
+		route add -host 10.0.0.31 eth0
+		echo "route add -host 10.0.0.31 eth0">>/etc/rc.local
+		echo "route add -host 172.16.1.31 eth1">>/etc/rc.local
+		# nfs01上执行相同步骤
+		route -n
+		tracetoute 172.16.1.83</pre>
+- 部署heartbeat服务
+	- 安装
+		<pre>yum install -y heartbeat</pre>
+	- 主要文件说明
+		<pre>/usr/share/doc/heartbeat-3.0.4/authkeys  #heartbeat服务的认证文件
+		/usr/share/doc/heartbeat-3.0.4/ha.cf   # heartbeat服务主配置文件
+		/usr/share/doc/heartbeat-3.0.4/haresources  # heartbeat资源文件</pre>
+	- nfs01（主）配置文件
+		<pre># cd /etc/ha.d/
+		[root@nfs01 ha.d]# cp /usr/share/doc/heartbeat-3.0.4/authkeys .
+		[root@nfs01 ha.d]# cp /usr/share/doc/heartbeat-3.0.4/ha.cf .   
+		[root@nfs01 ha.d]# cp /usr/share/doc/heartbeat-3.0.4/haresources .</pre>
+		>主备节点两端的配置文件(ha.cf,authkeys,haresource)完全相同，下面是各个节点的文件内容
+		- ha.cf文件
+		<pre># grep -v '^#' ha.cf
+		logfile /var/log/ha-log
+		logfacility     local0
+		keepalive 2
+		deadtime 30
+		warntime 10
+		initdead 120
+		baud    19200
+		ucast eth0 172.16.0.83
+		auto_failback on
+		node    nfs01
+		node    nfs2</pre>
+		- authkeys文件
+		<pre># cat authkeys    
+		auth 1                    # 采用何种加密方式   
+		1 crc                       # 无加密   
+		#2 sha1 HI!            # 启用sha1的加密方式   
+		#3 md5 Hello!       # 采用md5的加密方式
+	    chmod 600 authkeys</pre>
+		- 资源文件
