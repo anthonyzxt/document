@@ -54,7 +54,7 @@
 		warntime 10
 		initdead 120
 		baud    19200
-		ucast eth0 172.16.0.83
+		ucast eth1 172.16.0.83	#这里是指向对端的IP
 		auto_failback on
 		node    nfs01
 		node    nfs2</pre>
@@ -66,3 +66,20 @@
 		#3 md5 Hello!       # 采用md5的加密方式
 	    chmod 600 authkeys</pre>
 		- 资源文件
+		<pre>nfs01 IPaddr::10.0.0.44/24/eth0</pre>
+		- 服务管理
+		<pre>/etc/init.d.heartbeat start</pre>
+- 部署DRBD
+	- 安装
+	<pre>cd drbd-8.4.3
+	./configure --prefix=/usr/local/drbd --with-km --with-heartbeat
+	make && make install
+	mkdir -p /usr/local/drbd/var/run/drbd
+	cp /usr/local/drbd/etc/rc.d/init.d/drbd /etc/init.d/
+	chmod +x /etc/init.d/drbd
+	modprobe drbd
+	lsmod|grep drbd</pre>
+	- 配置
+	>有关DRBD涉及到的配置文件主要是global_common.conf和用户自定义的资源文件（当然，该资源文件可以写到global_common.conf中）  
+	>注意：nfs01和nfs2这两个主备节点的以下配置文件完全一样
+	<pre></pre>
