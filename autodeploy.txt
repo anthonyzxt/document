@@ -1,0 +1,162 @@
+#自动化部署
+- 环境的规划
+	- 开发环境  
+	    >开发者自己的环境，这个需要运维设置的开发环境，大家共用
+	- 测试环境  
+	    >功能测试环境和性能测试环境
+	- 预生产环境  
+		>生产环境集群中的某一个节点担任。  
+		>产生的原因：数据库不一致;使用生产环境的联调接口，如：支付接口
+	- 生产环境  
+		>直接对用户提供服务的环境
+##构建自动化部署的规划
+1. 规划
+2. 实现
+3. 总结和扩展
+###1. 规划
+1. 集群有10个节点
+	1. 实现一键部署10个节点
+	2. 一键回滚到任意版本
+	3. 一键回滚到上个版本
+2. 部署
+	1. git svn
+	2. 代码的获取
+		- svn+git直接拉取某个分支
+		- svn:指定版本号
+		- git:指定tag
+	3. 差异解决
+		1. 各个节点有差异，配置文件不一样，crontab.xml 预生产节点
+		2. 代码仓库和实际的差异。配置文件是否在代码仓库中。配置文件只在部署上有，单独的项目
+	4. 如何更新。Java tomcat需要更新
+	5. 测试
+	6. 串行和并行
+		1. 分组 `salt -b`
+	7. 如何执行
+		1. shell ./执行
+		2. web界面
+###2. 流程设计
+1. 获取代码（直接拉取）
+2. 编译（可选）
+3. 配置文件放进去
+4. 打包
+5. scp到目标服务器
+6. 将目标服务器移除集群
+7. 解压
+8. 放置到webroot
+9. scp差异文件
+10. 重启（可选）
+11. 测试
+12. 加入集群
+###3. 实现的shell函数
+- 关于uuid
+	blkid 文件
+- 关于自动部署问题
+	- 是否多人执行：加入锁文件
+	- 记录执行日志
+- 代码部分(基于shell)
+	<pre># cat deploy.sh   
+	#!/bin/bash
+	
+	#shell env
+	Shell_name="deploy.sh"
+	Shell_dir="/home/www"
+	Shell_log="${Shell_dir}/${Shell_name}.log"
+	
+	#code env
+	Code_dir="/deploy/code/deploy"
+	Config_dir="/deploy/config"
+	Tmp_dir="/deploy/tmp"
+	Tar_dir="/deploy/tar"
+	Lock_file="/var/run/deploy.lock"
+	
+	usage(){
+	  echo "Usage: $0 {deploy | rollback}"
+	}
+	
+	shell_lock(){
+	  touch ${Lock_file}
+	}
+	
+	shell_unlock(){
+	  rm -f ${Lock_file}
+	}
+	code_get(){
+	  echo code_get
+	  sleep 60
+	}
+	code_build(){
+	  echo code_build
+	}
+	
+	code_config(){
+	  echo code_config
+	}
+	
+	code_tar(){
+	  echo code_tar
+	}
+	
+	code_scp(){
+	  echo code_scp
+	}
+	
+	code_node_remove(){
+	  echo code_node_remove
+	}
+	
+	code_deploy(){
+	  echo code_deploy
+	}
+	
+	code_diff(){
+	  echo code_diff
+	}
+	
+	config_scp(){
+	  echo config_scp
+	}
+	code_test(){
+	  echo code_test
+	}
+	
+	code_node_in(){
+	  echo code_node_in
+	}
+	
+	rollback(){
+	  echo rollback
+	}
+	main(){
+	  if [ -f ${Lock_file} ];then
+	     echo "deploy is running..."
+	     exit
+	  fi
+	  Deploy_Method=$1
+	  case ${Deploy_Method} in
+	    deploy)
+	        shell_lock;
+	        code_get;
+	        code_buld;
+	        code_config;
+	        code_tar;
+	        code_scp;
+	        code_node_remove;
+	        code_deploy;
+	        code_diff;
+	        code_test;
+	        code_node_in;
+	        shell_unlock;
+	        ;; 
+	    rollback)
+	        shell_lock;
+	        rollback;
+	        shell_unlock;
+	        ;;
+	    *)
+	        usage;
+	  esac
+	}
+	main $1
+	</pre>
+###4.
+###5.

@@ -287,7 +287,8 @@
 - 在slave配置辅助DNS
 
 ##DNS服务器压测
-安装queryperf  
+安装queryperf
+  
 - 下载软件  
 	`wget http://ftp.isc.org/isc/bind9/9.7.3/bind-9.7.3.tar.gz`  
 - 安装queryperf
