@@ -56,6 +56,14 @@
 - 代码部分(基于shell)
 	<pre># cat deploy.sh   
 	#!/bin/bash
+	#Node list
+	Node_list="172.16.1.160 172.16.1.171"
+	#Date/Time variable
+	CDate=$(date "+%Y-%m-%d")
+	CTime=$(date "+%H-%M-%S")
+	
+	Log_Date='date "+%Y-%m-%d"'
+	Log_Time='date "+%H-%M-%S"'
 	
 	#shell env
 	Shell_name="deploy.sh"
@@ -63,7 +71,8 @@
 	Shell_log="${Shell_dir}/${Shell_name}.log"
 	
 	#code env
-	Code_dir="/deploy/code/deploy"
+	Pro_name="web-demo"
+	Code_dir="/deploy/code/web-demo"
 	Config_dir="/deploy/config"
 	Tmp_dir="/deploy/tmp"
 	Tar_dir="/deploy/tar"
@@ -73,6 +82,10 @@
 	  echo "Usage: $0 {deploy | rollback}"
 	}
 	
+	writelog(){
+	  LOGINFO=$1
+	  echo "${CDate}${CTime}: ${Shell_name}: ${LOGINFO} ">>${Shell_log}
+	}
 	shell_lock(){
 	  touch ${Lock_file}
 	}
@@ -81,8 +94,10 @@
 	  rm -f ${Lock_file}
 	}
 	code_get(){
-	  echo code_get
-	  sleep 60
+	  writelog "code_get"
+	  cd ${Code_dir} && git pull
+	  cp -r ${Code_dir} ${Tmp_dir}/
+	  Api_ver="123"
 	}
 	code_build(){
 	  echo code_build
@@ -90,26 +105,40 @@
 	
 	code_config(){
 	  echo code_config
+	  /bin/cp -r ${Config_dir}/* ${Tmp_dir}/${Pro_name}
+	  Pkg_name=${Pro_name}_${Api_ver}_${CDate}_${CTime}
+	  cd ${Tmp_dir} && mv ${Pro_name} ${Pkg_name}
 	}
 	
 	code_tar(){
-	  echo code_tar
+	  writelog "code_tar"
+	  cd ${Tmp_dir} && tar czf ${Pkg_name}.tar.gz ${Pkg_name}
+	  writelog "${Pkg_name}"
 	}
 	
 	code_scp(){
-	  echo code_scp
+	  writelog code_scp
+	  for node in $Node_list;do
+	    scp ${Tmp_dir}/${Pkg_name}.tar.gz $node:/opt/webroot/
+	  done
 	}
 	
 	code_node_remove(){
-	  echo code_node_remove
+	  writelog cluster_node_remove
 	}
 	
 	code_deploy(){
-	  echo code_deploy
+	  writelog code_deploy
+	  for node in $Node_list;do
+	    ssh $node "cd /opt/webroot && tar zxf ${Pkg_name}.tar.gz"
+	    ssh $node "rm -f /webroot/web-demo && ln -s /opt/webroot/{Pkg_name} /webroot/web-demo"
+	  done
+	  scp ${Config_dir}/other/10.0.0.171.crontab.xml 10.0.0.171:/webroot/web-demo/crontab.xml
 	}
 	
 	code_diff(){
 	  echo code_diff
+	  scp ${Config_dir}/other/10.0.0.171.crontab.xml 10.0.0.171:/opt/webroot/${Pkg_name}/crontab.xml
 	}
 	
 	config_scp(){
