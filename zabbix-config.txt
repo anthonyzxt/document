@@ -108,7 +108,7 @@
 ##zabbix-nginx监控##
 流程：  
 1. 确实nginx服务开启  
-2. 编写脚本进行数据采集    
+2. 编写脚本进行数据采集      
 	2.1 采集脚本
 	<pre>
 	#!/bin/bash
@@ -213,7 +213,7 @@
 	<pre>
 	vi /etc/zabbix/zabbix_agentd.conf
 	Include=/etc/zabbix/zabbix_agentd.d/\*.conf</pre>
-	2.3重启服务
+	2.3 重启服务
 	</pre>
 	Nginx修改：
 	<pre>location /nginx_status {
@@ -226,26 +226,26 @@
 	`UserParameter=linux_status[*],/etc/zabbix/zabbix_agentd.d/zabbix_linux_plugin.sh "$1" "$2" "$3"`
 4. 重启zabbix-agent  
 	`systemctl restart zabbix-agent`  
-4.1 测试：
+	4.1 测试：
 	<pre>#zabbix_get -s 10.0.0.160 -k linux_status[nginx_status,8080,active]
 	1</pre>   
 5. 添加item  
 步骤：  
 `configuration` -> `Template` -> `Create Template` ;进入创建好的模板中，添加新的 `items`，这里是监控Nginx的键值主要有一下7个：
 	<pre>linux_status[nginx_status,8080,accepts]
-linux_status[nginx_status,8080,active]
-linux_status[nginx_status,8080,handled]
-linux_status[nginx_status,8080,reading]
-linux_status[nginx_status,8080,requests]
-linux_status[nginx_status,8080,waiting]
-linux_status[nginx_status,8080,writing]</pre>
+	linux_status[nginx_status,8080,active]
+	linux_status[nginx_status,8080,handled]
+	linux_status[nginx_status,8080,reading]
+	linux_status[nginx_status,8080,requests]
+	linux_status[nginx_status,8080,waiting]
+	linux_status[nginx_status,8080,writing]</pre>
 6. 创建图形   
 	步骤：  
 `configuration` -> `graphs(图形)` -> `Create graphs`,监控项中添加以下4项：
 	<pre>linux_status[nginx_status,8080,active]
-linux_status[nginx_status,8080,reading]
-linux_status[nginx_status,8080,waiting]
-linux_status[nginx_status,8080,writing]</pre>
+	linux_status[nginx_status,8080,reading]
+	linux_status[nginx_status,8080,waiting]
+	linux_status[nginx_status,8080,writing]</pre>
 在主机中添加该模板  
 7. 创建触发器  
 8. 创建模板

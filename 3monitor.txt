@@ -1,5 +1,19 @@
 #多维系统监控#
 ##硬件监控##
+	yum install -y OpenIPMI ipmitool
+- 使用方式
+	- 本地调用
+	- 远程调用
+		- IP地址 用户名和密码
+	- ipmi配置网络
+		- ipmi over lan
+		- 独立IP
+- 对路由器和交换机的管理
+	- snmp协议
+		>centos安装snmp协议  port:161
+		>`yum install net-snmp net-snmp-utils` 
+	- 参考资料
+		`http://wiki.jiankongbao.com/doku.php/%E6%96%87%E6%A1%A3:%E5%AE%89%E5%85%A8%E6%8C%87%E5%BC%95#linux_snmp`
 ##系统监控##
 主要监控项：  
 - CPU  
