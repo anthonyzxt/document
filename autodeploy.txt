@@ -197,5 +197,37 @@
     	>1.列出回滚版本
     	>2.执行回滚（重启）
     	>还有非常紧急情况，直接回滚上一版本
-###4.
-###5.
+###4.更新说明
+- git pull
+	>频繁更新
+- git tag
+	>稳定更新
+- 获取指定的commit id
+	- master分支，可作为发布的版本
+	- dev分支
+###5.devops
+- 什么是devops
+	>- DevOps（英文Development和Operations的组合）是一组过程、方法与系统的统称，用于促进开发（应用程序/软件工程）、技术运营和质量保障（QA）部门之间的沟通、协作与整合。它的出现是由于软件行业日益清晰地认识到：为了按时交付软件产品和服务，开发和运营工作必须紧密合作。    
+	>- 也是一种文化，让开发、运维、测试之间沟通的一种文化。  
+	>- 目的是一样的，为了让我们的在软件构建、测试、发布更加的敏捷、频繁、可靠。
+- 持续集成
+	>是指在软件开发过程中，频繁地将代码集成到主干上，然后进行**自动化测试**
+	>![](https://www.unixhot.com/uploads/article/20160813/95dc642c4c4230e9c1b418cb00f4e5d4.png)
+- 持续交付
+	>是指在持续集成的基础上，将集成后的代码部署到更贴近真实运行环境的「类生产环境」（production-like environments）中
+	>![](https://www.unixhot.com/uploads/article/20160813/95dc642c4c4230e9c1b418cb00f4e5d4.png)
+- 持续部署
+	> 在持续交付的基础上，把部署到生产环境的过程自动化。如果你对比上图持续部署就可以发现持续部署和持续交付的区别就是最终部署到生产环境是自动化的。
+	> ![](https://www.unixhot.com/uploads/article/20160813/b15dd230dd7b351a1cce50257cb15589.png)
+###6. 持续集成之Jenkins安装部署
+- 安装JDK  
+	`yum install -y java-1.8.0`
+- 安装Jekins
+	<pre>cd /etc/yum.repos.d/
+	wget http://pkg.jenkins.io/redhat/jenkins.repo
+	rpm --import http://pkg.jenkins.io/redhat/jenkins.io.key
+	yum install -y jenkins
+	systemctl start jenkins</pre>
+- 访问Jenkins
+	>在浏览器输入http://ip:8080来访问jenkins。解锁Jenkins，请在/var/lib/jenkins/secrets/initialAdminPassword中查看文件。
+	`cat /var/lib/jenkins/secrets/initialAdminPassword` 
