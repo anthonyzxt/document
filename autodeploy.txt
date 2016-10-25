@@ -57,7 +57,8 @@
 	<pre># cat deploy.sh   
 	#!/bin/bash
 	#Node list
-	Node_list="172.16.1.160 172.16.1.171"
+	Pre_list="172.16.1.160"
+	Group_list1="172.16.1.171"
 	#Date/Time variable
 	CDate=$(date "+%Y-%m-%d")
 	CTime=$(date "+%H-%M-%S")
@@ -97,7 +98,8 @@
 	  writelog "code_get"
 	  cd ${Code_dir} && git pull
 	  cp -r ${Code_dir} ${Tmp_dir}/
-	  Api_ver="123"
+	  Api_verL=$(git show|grep commit|cut -d ' ' -f2)
+	  Api_ver=$(echo ${Api_verL}:0:6})
 	}
 	code_build(){
 	  echo code_build
@@ -118,7 +120,11 @@
 	
 	code_scp(){
 	  writelog code_scp
-	  for node in $Node_list;do
+	  for node in $Pre_list;do
+	    scp ${Tmp_dir}/${Pkg_name}.tar.gz $node:/opt/webroot/
+	  done
+	  
+	  for node in $Group_list1;do
 	    scp ${Tmp_dir}/${Pkg_name}.tar.gz $node:/opt/webroot/
 	  done
 	}
@@ -127,30 +133,43 @@
 	  writelog cluster_node_remove
 	}
 	
-	code_deploy(){
+	pre_deploy(){
+	  writelog "remove from cluster"
+	  ssh $Pre_list "cd /opt/webroot && tar zxf ${Pkg_name}.tar.gz"
+	  ssh $Pre_list "rm -f /webroot/web-demo && ln -s /opt/webroot/{Pkg_name} /webroot/web-demo"
+	}
+	
+	url_test(){
+	  URL=$1
+	  curl -s --head $URL | grep '200 OK'
+	  if [ $? -ne 0 ];then
+	    shell_unlock;
+	    writelog "test error" && exit
+	  fi
+	}
+	
+	pre_test(){
+	  url_test "http ://10.0.0.160/index.html"
+	  echo "add to cluster"
+	}
+	
+	group1_deploy(){
 	  writelog code_deploy
-	  for node in $Node_list;do
+	  for node in $Group_list2;do
 	    ssh $node "cd /opt/webroot && tar zxf ${Pkg_name}.tar.gz"
 	    ssh $node "rm -f /webroot/web-demo && ln -s /opt/webroot/{Pkg_name} /webroot/web-demo"
 	  done
 	  scp ${Config_dir}/other/10.0.0.171.crontab.xml 10.0.0.171:/webroot/web-demo/crontab.xml
 	}
 	
-	code_diff(){
-	  echo code_diff
-	  scp ${Config_dir}/other/10.0.0.171.crontab.xml 10.0.0.171:/opt/webroot/${Pkg_name}/crontab.xml
+	group1_test(){
+	  url_test "http ://10.0.0.171/index.html"
+	  echo "add to cluster"
 	}
 	
-	config_scp(){
-	  echo config_scp
-	}
-	code_test(){
-	  echo code_test
-	}
-	
-	code_node_in(){
-	  echo code_node_in
-	}
+	#code_node_in(){
+	#  echo code_node_in
+	#}
 	
 	rollback(){
 	  echo rollback
@@ -169,9 +188,11 @@
 	        code_config;
 	        code_tar;
 	        code_scp;
-	        code_node_remove;
-	        code_deploy;
-	        code_diff;
+	        #code_node_remove;
+	        group1_deploy;
+	        group1_test;
+	        #code_diff;
+	        group2_deploy;
 	        code_test;
 	        code_node_in;
 	        shell_unlock;
