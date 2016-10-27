@@ -277,3 +277,60 @@
 	mv sonarqube-5.6 /usr/local/
 	ln -s /usr/local/sonarqube-5.6/ /usr/local/sonarqube</pre>
 - 准备Sonar数据库
+	>数据库要求：mysql需要5.6以上 安装最新版本的sonar
+	>数据库建库及授权
+		<pre>mysql> CREATE DATABASE sonar CHARACTER SET utf8 COLLATE utf8_general_ci;
+	mysql> GRANT ALL ON sonar.* TO 'sonar'@'localhost' IDENTIFIED BY 'sonar@pw';
+	mysql> GRANT ALL ON sonar.* TO 'sonar'@'%' IDENTIFIED BY 'sonar@pw';
+	mysql> FLUSH PRIVILEGES;</pre>
+- 安装sonar
+	<pre>yum install -y java-1.8.0
+	cd /usr/local/src
+	wget https://sonarsource.bintray.com/Distribution/sonarqube/sonarqube-5.6.zip
+	unzip sonarqube-5.6.zip
+	mv sonarqube-5.6 /usr/local/
+	ln -s /usr/local/sonarqube-5.6/ /usr/local/sonarqube	</pre>
+- 配置
+	<pre>cd /usr/local/sonarqube/conf/
+	vim sonar.properties
+	sonar.jdbc.username=sonar
+	sonar.jdbc.password=sonae@pw
+	sonar.jdbc.url=jdbc:mysql://localhost:3306/sonar?useUnicode=true&characterEncoding=utf8&rewriteBatchedStatements=true&useConfigs=maxPerformance</pre>
+	>其他：  
+	>配置Java访问数据库驱动(可选)
+    默认情况Sonar有自带的嵌入的数据库，那么你如果使用类是Oracle数据库，必须手动复制驱动类到${SONAR_HOME}/extensions/jdbc-driver/oracle/目录下，其它支持的数据库默认提供了驱动。其它数据库的配置可以参考官方文档：
+	http://docs.sonarqube.org/display/HOME/SonarQube+Platform
+- 启动
+	>这个自己看情况修改
+	<pre> vim sonar.properties
+	sonar.web.host=0.0.0.0
+	sonar.web.port=9000
+	/usr/local/sonarqube/bin/linux-x86-64/sonar.sh start
+	访问： http://IP:9000</pre>
+- 插件安装的两种方法
+	- web界面安装更新
+	- 放在服务器端软件目录下
+		>/usr/local/sonarqube/extensions/plugins
+	- 中文包安装
+		- administrator - system - update center - available - search - chinese。然后根据要求选择相应的语言包插件
+
+- 分析插件的安装：Scaner
+	[http://docs.sonarqube.org/display/SCAN/Analyzing+with+SonarQube+Scanner](http://docs.sonarqube.org/display/SCAN/Analyzing+with+SonarQube+Scanner)
+	- 安装
+	<pre>cd /usr/local/src/
+	wget https://sonarsource.bintray.com/Distribution/sonar-scanner-cli/sonar-scanner-2.8.zip
+	unzip sonar-scanner-2.8.zip 
+	mv sonar-scanner-2.8 /usr/local/
+	ln -s /usr/local/sonar-scanner-2.8/ /usr/local/sonar-scanner</pre>
+	- 配置
+		<pre>cd /usr/local/sonar-scanner/conf
+		# grep -vE '#|^$' sonar-scanner.properties 
+		sonar.host.url=http://localhost:9000
+
+		sonar.sourceEncoding=UTF-8
+
+		sonar.jdbc.username=sonar
+		sonar.jdbc.password=sonar@pw
+
+		sonar.jdbc.url=jdbc:mysql://localhost:3306/sonar?useUnicode=true&amp;characterEncoding=utf8</pre>
+	- 测试
