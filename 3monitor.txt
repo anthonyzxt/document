@@ -14,9 +14,15 @@
 		>`yum install net-snmp net-snmp-utils` 
 	- 参考资料
 		`http://wiki.jiankongbao.com/doku.php/%E6%96%87%E6%A1%A3:%E5%AE%89%E5%85%A8%E6%8C%87%E5%BC%95#linux_snmp`
+	- 相关获取命令
+		- snmpget
+		- snmpwalk
+		
 ##系统监控##
 主要监控项：  
-- CPU  
+
+- CPU
+	>关于ssh再高负载情况下还能连接的问题：提高ssh优先级
 - 内存  
 - IO（Input/Output 网络、磁盘）
 ##CPU监控##

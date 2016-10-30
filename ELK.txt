@@ -1,0 +1,85 @@
+#ELKstack日志平台
+#ELKstack快速搭建
+- logstash(收集)
+- elasticsearch(存数+搜索)
+- kibana(展示)
+- 安装环境需求
+	- 两台机器，一台装elastisearch，另一台安装logstash和kibana
+- Yum安装ELK
+	- Elasticsearch部署
+		>需JDK，检查是否有安装
+		<pre>yum install -y java
+		java -version</pre>
+	- 安装
+		<pre>rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch 
+		---添加elasticsearch仓库
+		vim /etc/yum.repos.d/elasticsearch.repo
+		[elasticsearch-2.x]
+		name=Elasticsearch repository for 2.x packages
+		baseurl=http://packages.elastic.co/elasticsearch/2.x/centos
+		gpgcheck=1
+		gpgkey=http://packages.elastic.co/GPG-KEY-elasticsearch
+		enabled=1
+		---安装
+		yum install -y elasticsearch</pre>
+- Yum安装logstash
+	- 安装
+		<pre>rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch
+		---添加logstash仓库
+		vim /etc/yum.repos.d/logstash.repo
+		[logstash-2.3]
+		name=Logstash repository for 2.3.x packages
+		baseurl=https://packages.elastic.co/logstash/2.3/centos
+		gpgcheck=1
+		gpgkey=https://packages.elastic.co/GPG-KEY-elasticsearch
+		enabled=1
+		---安装
+		yum install -y logstash</pre>
+- Yum安装Kibana
+	- 安装
+		<pre> rpm --import https://packages.elastic.co/GPG-KEY-elasticsearch
+		---添加logstash仓库
+		vim /etc/yum.repos.d/kibana.repo 
+		[kibana-4.5]
+		name=Kibana repository for 4.5.x packages
+		baseurl=http://packages.elastic.co/kibana/4.5/centos
+		gpgcheck=1
+		gpgkey=http://packages.elastic.co/GPG-KEY-elasticsearch
+		enabled=1
+		---安装
+		yum install -y kibana</pre>
+- cobbler创建自己的ELK仓
+	<pre> cobbler repo add --name=logstash-2.3 --mirror=http://packages.elastic.co/logstash/2.3/centos --arch=x86_64 --breed=yum
+	cobbler repo add --name=elasticsearch2 --mirror=http://packages.elastic.co/ela ... entos --arch=x86_64 --breed=yum
+	cobbler repo add --name=kibana4.5 --mirror=http://packages.elastic.co/kibana/4.5/centos --arch=x86_64 --breed=yum
+	cobbler reposync</pre>
+###Elasticsearch
+- 配置文件
+	<pre>grep '^[a-z]' elasticsearch.yml 
+	cluster.name: myes   #集群名称
+	node.name: cobbler   #节点名称
+	path.data: /data/es-data    #数据保存位置
+	path.logs: /var/logs/elasticsearch   #日志保存位置
+	bootstrap.memory_lock: true   #锁定一直在内存，不进入交换分区
+	network.host: 10.0.0.160   #主机IP地址
+	http.port: 9200   #默认port</pre>
+- 监控插件的安装
+	<pre>/usr/share/elasticsearch/bin/plugin install marvel-agent</pre>
+- head插件
+	>集群管理的插件
+	<pre>/usr/share/elasticsearch/bin/plugin install mobz/elasticsearch-head</pre>	
+- bigdesk插件
+	>性能监控，(es版本太高会有不支持的问题)
+	<pre>/usr/share/elasticsearch/bin/plugin install lukas-vlcek/bigdesk</pre>
+- kopf插件
+	<pre>/usr/share/elasticsearch/bin/plugin install lmenezes/elasticsearch-kopf</pre>
+- 访问方式
+	http://IP:9200/_plugin/插件名称
+- 测试
+	>在http://IP:9200/_plugin/head上测试
+	- 插入数据
+		>/inde-demo/tes
+		>{"user": "oldboy", "mesg": "hell world"}
+	- 查看
+		- 集群健康值（）
+###ES集群
