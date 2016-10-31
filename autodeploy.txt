@@ -226,6 +226,7 @@
 - 获取指定的commit id
 	- master分支，可作为发布的版本
 	- dev分支
+- 安装 
 ###5.devops
 - 什么是devops
 	>- DevOps（英文Development和Operations的组合）是一组过程、方法与系统的统称，用于促进开发（应用程序/软件工程）、技术运营和质量保障（QA）部门之间的沟通、协作与整合。它的出现是由于软件行业日益清晰地认识到：为了按时交付软件产品和服务，开发和运营工作必须紧密合作。    
@@ -257,7 +258,7 @@
 		<pre>vi /etc/gitlab/gitlab.rb
 		vi /opt/gitlab/embedded/service/gitlab-rails/config/gitlab.yml
 		gitlab-ctl reconfigure
-		gitlab restart</pre>
+		gitlab-ctl restart</pre>
 	- 认证
 		- gitlab端加入deploy key(public key)
 		- jenkins加入(private key)
@@ -333,4 +334,41 @@
 		sonar.jdbc.password=sonar@pw
 
 		sonar.jdbc.url=jdbc:mysql://localhost:3306/sonar?useUnicode=true&amp;characterEncoding=utf8</pre>
-	- 测试
+		>sonar-scaner要与jenkins放在同一个服务器上。然后修改相关的属性配置。
+	- 质量分析测试
+		>从sonarsouce/sonar-example测试代码，这里以php为例
+		<pre>cd /tools/sonar-examples-master/projects/languages/php/php-sonar-runner
+		#执行测试
+		/usr/local/sonar-scanner/bin/sonar-scanner</pre>
+- sonar与jenkins的结合
+	>jenkins安装 `sonarqube plugin` 插件
+	- 设置
+		- 1. 系统管理 - 系统设置 - 添加sonar
+		- 2. 系统管理 - `global tool configuration` - 新增`SonarQube Scanner`和路径
+		- 3. 修改项目配置，增加构建步骤，选择`sonar...scaner`，添加扫描属性设置(Analysis properties)<pre>sonar.projectKey=demo
+		sonar.projectName=demo
+		sonar.projectVersion=1.0
+		sonar.sources=./
+		sonar.language=php
+		sonar.sourceEncoding=UTF-8</pre>
+- 代码部署
+	- 可以调用shell脚本执行
+	- 写在jenkins里边执行，和代码质量检查分开执行
+	- 示例
+		- 直接新增一个项目，点击构建，输入自动构建的shell命令即可，注意权限:**加入sudoers(jenkins ALL=（ALL） NOPASSWD: /usr/bin/ssh)和关闭tty接口（即远程执行部分）**
+		<pre>sudo ssh www@10.0.0.31 "sh autodeploy deploy"</pre>
+	- 项目关联（parametenzed trigger plugin关联插件）
+		>即构建后操作
+	- Pipeline插件（Build Pipeline Plugin）
+		>新增视图，主要选择`Select Initial Job`，即从哪个开始执行，自动执行
+- jenkins与gitlab集成(webhook)
+	>`gitlab hook plugin` 和 `gitlab plugin`以及验证插件`Build Authorization Token Root Plugin`
+	- 配置的两种方法
+		- 在构建的时候设置
+	- token的生成
+		<pre>openssl rand -hex 10</pre> 
+	- 添加token
+		1. 项目编辑到构建触发器-身份验证令牌：填入令牌
+		2. 勾选: **Build when a change is pushed to GitLab. GitLab CI Service URL: http://10.0.0.160:8080/project/web-demo**
+		3. gitlab里边添加钩子脚本，选择要添加的项目：点击右上角设置里边的**webhooks**,令牌模式：**buildByToken/build?job=RevolutionTest&token=TacoTuesday**。修改如下：http://10.0.0.160:8080/buildByToken/build?job=demo-sonar&token=TacoTuesday。任何粘贴在webhook里的URL地址栏，保存即可
+		4. 剩下的只要提交便可部署测试环境，会自动

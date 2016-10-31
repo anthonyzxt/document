@@ -62,7 +62,8 @@
 	path.logs: /var/logs/elasticsearch   #日志保存位置
 	bootstrap.memory_lock: true   #锁定一直在内存，不进入交换分区
 	network.host: 10.0.0.160   #主机IP地址
-	http.port: 9200   #默认port</pre>
+	http.port: 9200   #默认port
+	无法连接的时候，使用：iptables -F</pre>
 - 监控插件的安装
 	<pre>/usr/share/elasticsearch/bin/plugin install marvel-agent</pre>
 - head插件
@@ -83,3 +84,18 @@
 	- 查看
 		- 集群健康值（）
 ###ES集群
+>ES集群没有主节点，任何一个节点都可以管理其他节点。
+>节点2安装elasticsearch,IP:10.0.0.172,通讯方式可改外单播方式通讯。
+>修改内容如下:  
+>`discovery.zen.ping.unicast.hosts: ["10.0.0.160", "10.0.0.172"]`
+
+- 监控状态
+	<pre>curl -XGET "http://10.0.0.160:9200/_cluster/health?pretty=true"|grep status </pre>
+	>其中黄色代表主分片没问题，但分片有问题
+- cat /api
+	<pre>https://www.elastic.co/guide/en/elasticsearch/reference/current/cat.html</pre>
+- 环境搭建注意事项
+	1. 硬件要求
+	2. 系统要求：最大文件数（unlimt -SHn 65535）
+###Logstash
+>收集者
