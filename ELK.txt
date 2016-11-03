@@ -93,9 +93,196 @@
 	<pre>curl -XGET "http://10.0.0.160:9200/_cluster/health?pretty=true"|grep status </pre>
 	>其中黄色代表主分片没问题，但分片有问题
 - cat /api
-	<pre>https://www.elastic.co/guide/en/elasticsearch/reference/current/cat.html</pre>
+	[https://www.elastic.co/guide/en/elasticsearch/reference/current/cat.html](https://www.elastic.co/guide/en/elasticsearch/reference/current/cat.html)
 - 环境搭建注意事项
 	1. 硬件要求
 	2. 系统要求：最大文件数（unlimt -SHn 65535）
 ###Logstash
->收集者
+- 角色：收集者  
+- 主要概念：INPUT FILTER OUTPUT   
+- 插件： stdin stdout
+	>示例1：
+	<pre># /opt/logstash/bin/logstash -e 'input { stdin{} } output{ stdout{} }'
+	Settings: Default pipeline workers: 1
+	Pipeline main started
+	hell
+	2016-09-24T11:45:04.483Z linux-node2 hell</pre>
+	>示例2：
+	<pre>/opt/logstash/bin/logstash -e 'input { stdin{} } output{ elasticsearch { hosts => ["10.0.0.172:9200"] index => "logstash-%{+YYYY.MM.dd}"} }'</pre>
+	>示例3：屏幕和ES都有输出
+	<pre>/opt/logstash/bin/logstash -e 'input { stdin{} } output{ stdout { code=>rubydebug }elasticsearch { hosts => ["10.0.0.172:9200"] index => "logstash-%{+YYYY.MM.dd}"} }'</pre>
+- 收集日志方式
+	- rsyslog -> ES
+	- file -> ES
+	- tcp -> ES
+- logstash配置
+	- 文件保存位置及写法
+		<pre>cd /etc/logstash/conf.d/
+		vi demo.conf
+		input{
+		  stdin{}
+		}
+		
+		filter{
+		}
+		
+		**output{
+		  elasticsearch {
+		    hosts => ["10.0.0.160"]
+		    index => "logstash-%{+YYYY.MM.dd}"
+		  }
+		  stdout{
+		    codec => rubydebug
+		  }
+		}</pre> 
+		>说明：
+		>1. 每行都是一个事件
+		>2.input和output必不可少
+		>3.基本流程：事件 -> input -> codec -> filter -> codec -> output
+- input -> file 详解
+	- format
+		<pre>file {
+		    path => ...
+		}</pre>
+	- path
+		>Value type is array,The path(s) to the file(s) to use as an input. You can use filename patterns here, such as /var/log/*.log. If you use a pattern like /var/log/**/*.log, a recursive search of /var/log will be done for all *.log files. Paths must be absolute and cannot be relative.
+	- sincedb
+		>keeps track of the current position of monitored log files,The default will write sincedb files to <path.data>/plugins/inputs/file。作于相当于mysql主从中的pos点位置。
+	- start_position
+		>Choose where Logstash starts initially reading files: at the beginning or at the end. The default behavior treats files like live streams and thus starts at the end. If you have old data you want to import, set this to beginning.
+	- type
+		>Add a type field to all events handled by this input.Types are used mainly for filter activation.
+###kibana
+- 配置文件
+	<pre>grep '^[a-z]' /opt/kibana/config/kibana.yml 
+	elasticsearch.url: "http://10.0.0.160:9200"
+	kibana.index: ".kibana"
+	/etc/init.d/kibana start</pre>
+	>访问地址：http://IP:5601
+- 配置索引
+	>1. 启动后需配置索引  
+	>2. 刷新时间： quick、relative、absolute
+
+###Logstash-input-if判断
+- java日志示例：加入if判断
+	<pre>cat /etc/logstash/conf.d/file.conf 
+	input{
+	  file{
+	    path => ["/var/log/messages","/var/log/secure"]
+	    type => "system-log"
+	    start_position => "beginning"
+	  }  
+	  file{
+	    path => ["/var/log/elasticsearch/myes.log"]
+	    type => "es-log"
+	  }
+	}
+	
+	filter{
+	}
+	
+	output{
+	  if [type] == "system-log"{
+	  elasticsearch{
+	    hosts => ["10.0.0.160:9200"]
+	    index => "system-log-%{+YYYY.MM}"
+	    }
+	  } 
+	  if [type] == "es-log"{
+	  elasticsearch{
+	    hosts => ["10.0.0.160:9200"]
+	    index => "es-log-%{+YYYY.MM}"
+	    }
+	  } 
+	}
+	#启动观察
+	/opt/logstash/bin/logstash -f /etc/logstash/conf.d/file.conf </pre>
+	- kibana增加索引，格式如下：**`[es-log-]YYYY.MM`**
+
+- 将多行当做一个事件输出：multiline
+	- 官方文档
+	<pre>input {
+		  stdin {
+		    codec => multiline {
+		      pattern => "pattern, a regexp"
+		      negate => "true" or "false"
+		      what => "previous" or "next"
+		    }
+		  }
+		}</re>
+	>pattern:合并要匹配的正则规则
+	>negate：true是匹配上合并;false是没匹配上合并
+	>what: previous 和 next,主要是和上面的行合并还是和下边的行合并
+	- 示例：将java多行合并为一行
+				<pre># cat file.conf      
+		input{
+		  file{
+		    path => ["/var/log/messages","/var/log/secure"]
+		    type => "system-log"
+		    start_position => "beginning"
+		  }  
+		  file{
+		    path => ["/var/log/elasticsearch/myes.log"]
+		    type => "es-log"
+		    start_position => "beginning"
+		    codec => multiline{
+		      pattern => "^\["
+		      negate => true
+		      what => "previous"
+		   } 
+		 }
+		}
+		
+		filter{
+		}
+		
+		output{
+		  if [type] == "system-log"{
+		  elasticsearch{
+		    hosts => ["10.0.0.160:9200"]
+		    index => "system-log-%{+YYYY.MM}"
+		    }
+		  } 
+		  if [type] == "es-log"{
+		  elasticsearch{
+		    hosts => ["10.0.0.160:9200"]
+		    index => "es-log-%{+YYYY.MM}"
+		    }
+		  } 
+		}</pre>
+###ELK 提取nginx 日志
+>1. 将nginx访问日志修改成**`json`**格式,设计到的plugins为：**`codec`**
+>2. 格式
+	<pre>json {
+  	}</pre>
+
+- 模拟访问:
+	`# ab -n 1000 -c 1 http://10.0.0.172/`	
+
+- 整理nginx日志格式,修改为json格式
+	<pre>log_format
+	access_log_json  '{"user_ip":"$http_x_real_ip","lan_ip":"$remote_addr","log_time":"$time_is
+	o8601","user_req":"$request","body_bytes_sent":"$body_bytes_sent","req_time":"$request_time","user":"$http_
+	user_agent"}';               
+    access_log  /var/log/nginx/access_json.log access_log_json;</pre>
+- 其他方法
+	- 文件直接读取：redis
+	- python读取redis,写成json文件，然后写入ES
+- logstash日志提取格式
+	<pre># vi nginx.conf               
+	input{
+	  file {
+	    path => "/var/log/nginx/access_json.log"
+	    codec => "json"
+	  }
+	}
+	
+	filter{
+	}
+	
+	output{
+	  elasticsearch{
+	    hosts => ["10.0.0.160:9200"]
+	    index => "nginx-access-log-%{+YYYY.MM.DD}"
+	    }
+	}</pre> 

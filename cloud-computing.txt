@@ -1,0 +1,47 @@
+#cloud computing
+---
+>1. 一种模式
+>2. 必须通过网络使用
+>3. 弹性计算、按需付费、快速扩展。不用关心基础设施
+
+- 分层
+![](http://a3.qpic.cn/psb?/V14HxOdJ1WoMko/wU3orMfbjHXaTyjfAFOQc98s8pTEpNYRNS.tWw40Juk!/b/dMgAAAAAAAAA&bo=7gKeAQAAAAADB1E!&rf=viewer_4)
+	- IAAS: Infrastructue as a service
+	- PAAS: Platform as a service
+	- SAAS: Software as a service
+- 虚拟化
+	- 全部虚拟机
+	- 半虚拟化（磁盘IO性能）
+	- 使用场景
+		- 服务器虚拟化
+		- 桌面虚拟化
+		- 应用虚拟化
+	
+##KVM（Kernel-based Virtual Machine） 
+- QEMU
+	>KVM用来虚拟化磁盘，网卡等。
+- 安装
+	- 环境
+		<pre>[root@manage ~]# cat /etc/redhat-release 
+		CentOS Linux release 7.2.1511 (Core) 
+		[root@manage ~]# uname -r
+		3.10.0-327.el7.x86_64</pre>
+	- yum安装	
+		<pre>yum list|grep kvm
+		libvirt-daemon-kvm.x86_64               1.2.17-13.el7_2.5              updates  
+		pcp-pmda-kvm.x86_64                     3.10.6-2.el7                   base     
+		qemu-kvm.x86_64                         10:1.5.3-105.el7_2.7           updates  
+		qemu-kvm-common.x86_64                  10:1.5.3-105.el7_2.7           updates  
+		qemu-kvm-tools.x86_64   
+		yum install -y libvirt-daemon-kvm qemu-kvm qemu-kvm-tools</pre>
+	- libvirtd
+		>用来管理虚拟机  
+		>启动命令：
+		<pre>systemctl enable libvirtd
+		systemctl start libvirtd</pre>
+- 创建一台虚拟机
+	- 创建镜像
+		<pre># qemu-img create -f raw /mnt/sdb/CentOS-6.7.raw 8G</pre>
+	- 创建虚拟机
+		<pre># yum install -y virt-install
+		# virt-install --virt-type kvm --name CentOS-6.7 --ram 2048 --cdrom=/root/CentOS-6.7-x86_64-bin-DVD1.iso --disk path=/mnt/sdb/CentOS-6.7.raw --network network=default --graphics vnc.listen=0.0.0.0 --noautoconsole</pre>
