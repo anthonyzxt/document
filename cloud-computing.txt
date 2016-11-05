@@ -45,3 +45,6 @@
 	- 创建虚拟机
 		<pre># yum install -y virt-install
 		# virt-install --virt-type kvm --name CentOS-6.7 --ram 2048 --cdrom=/root/CentOS-6.7-x86_64-bin-DVD1.iso --disk path=/mnt/sdb/CentOS-6.7.raw --network network=default --graphics vnc.listen=0.0.0.0 --noautoconsole</pre>
+    - 关于linux虚拟机装好系统之后的注意事项
+	    - 关系uuid
+	    - 关掉predns
