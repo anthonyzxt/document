@@ -44,4 +44,12 @@
 		<pre># qemu-img create -f raw /mnt/sdb/CentOS-6.7.raw 8G</pre>
 	- 创建虚拟机
 		<pre># yum install -y virt-install
-		# virt-install --virt-type kvm --name CentOS-6.7 --ram 2048 --cdrom=/root/CentOS-6.7-x86_64-bin-DVD1.iso --disk path=/mnt/sdb/CentOS-6.7.raw --network network=default --graphics vnc.listen=0.0.0.0 --noautoconsole</pre>
+		# virt-install --virt-type kvm --name CentOS-6.7 --ram 2048 --cdrom=/root/CentOS-6.7-x86_64-bin-DVD1.iso --disk path=/mnt/sdb/CentOS-6.7.raw --network network=default --graphics vnc,listen=0.0.0.0 --noautoconsole</pre>
+		>关于错误 'ERROR    Guest name ‘Centos-6.7’ is already in use.'的解决方法 ： 
+		>`virsh undefine Centos-6.7`
+	- 管理命令
+		- virsh
+		- 常用的有
+			- virsh list --all
+			- virsh start name
+			- virsh undefine name
