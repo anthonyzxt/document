@@ -44,7 +44,121 @@
 		<pre># qemu-img create -f raw /mnt/sdb/CentOS-6.7.raw 8G</pre>
 	- 创建虚拟机
 		<pre># yum install -y virt-install
-		# virt-install --virt-type kvm --name CentOS-6.7 --ram 2048 --cdrom=/root/CentOS-6.7-x86_64-bin-DVD1.iso --disk path=/mnt/sdb/CentOS-6.7.raw --network network=default --graphics vnc.listen=0.0.0.0 --noautoconsole</pre>
-    - 关于linux虚拟机装好系统之后的注意事项
+		# virt-install --virt-type kvm --name CentOS-6.7 --ram 2048 --cdrom=/root/CentOS-6.7-x86_64-bin-DVD1.iso --disk path=/mnt/sdb/CentOS-6.7.raw --network network=default --graphics vnc，listen=0.0.0.0 --noautoconsole</pre>
+		>关于错误 'ERROR    Guest name ‘Centos-6.7’ is already in use.'的解决方法 ： 
+		>`virsh undefine Centos-6.7`
+	- 关于linux虚拟机装好系统之后的注意事项
 	    - 关系uuid
 	    - 关掉predns
+	    - 安装好常用的命令，以便做镜像
+	- 管理命令（libvirt）
+		- libvirt服务管理虚拟机，该服务停用了的话，不会影响虚拟机
+		- virsh
+		- virsh-install
+		- dumpxml（通过dumpxml还原被破坏的系统：virsh dumpxml Centos6.7）
+		- reboot
+		- restore
+		- shutdown
+		- list --all
+		- start name
+		- undefine name(彻底删除虚拟机)
+		- suspend 暂停
+		- resume 恢复正常运行
+		- edit 修改虚拟机配置文件
+	- 快照管理命令(snapshot不支持raw格式)
+		- snapshot-create
+		- snapshot-delete
+		- snapshot-list
+###虚拟机的管理-CPU
+1. CPU的调整
+	<pre># virt-install --help|grep cpu
+  --vcpus VCPUS         Number of vcpus to configure for your guest. Ex:
+                        --vcpus 5
+                        --vcpus 5,maxcpus=10,cpuset=1-4,6,8 #设置vcpu的个数，可以动态地调整到最大限制个数10,可以跑在哪个核上
+                        --vcpus sockets=2,cores=4,threads=2,
+  --cpu CPU             CPU model and features. Ex:
+                        --cpu coreduo,+x2apic
+                        --cpu host</pre>
+2. cpu的优化
+	<pre>virsh edit CentOS-7
+	< vcpu placement='static'>1< /vcpu></pre>
+	修改为：
+    `< vcpu placement='auto' current="1">4</ vcpu>`
+	使配置生效：
+	`virsh setcvpus CentOS-7 2(CPU个数) --live`	
+3. 查看是否添加成功
+	<pre>cat /proc/cpuinfo
+	cat /sys/devices/system/cpu/cpu1/online
+	1 #1为打开，0为未工作</pre>
+###虚拟机的管理-内存
+- 使用命令生效
+	<pre>#缩少，直接设置数字即可
+	virsh qemu-monitor-command CentOS-7 --hmp --cmd balloon 512
+	#查看
+	virsh qemu-monitor-command CentOS-7 --hmp --cmd info balloon
+	</pre>
+###虚拟机的管理-磁盘
+- 关于扩容
+	- 对于kvm，扩容的时候要注意备份数据，以防发生数据丢失。
+- 两种模式
+	- qcow2(稀疏模式)
+	- raw（全镜像模式）
+- qcow2特点
+	- 更小的空间占用，即使文件系统不支持空洞(holes)；
+	- 支持写时拷贝（COW, copy-on-write），镜像文件只反映底层磁盘的变化
+	- 支持快照（snapshot），镜像文件能够包含多个快照的历史
+	- 可选择基于 zlib 的压缩方式
+	- 可以选择 AES 加密
+- 两者的区别
+	- raw的性能比较好，raw的资源占用的是静态的，分配多大占多大
+	- qcow2对资源的占用是动态的。
+	- 可通过如下命令查看磁盘格式
+		<pre># qemu-img info /mnt/sdb/CentOS-7-x86_64.raw 
+		image: /mnt/sdb/CentOS-7-x86_64.raw
+		file format: raw
+		virtual size: 10G (10737418240 bytes)
+		disk size: 1.4G</pre>
+- 格式的转换
+	<pre>qemu-img convert -f raw -O qcow2 test.raw test.raw.qcow2</pre>
+- 关于qemu的cluster
+	>在 qcow2 中，磁盘的内容是保存在 cluster 中（每个 cluster 包含一些大小为 512 字节的扇区）	
+###虚拟机的管理-网络
+- 查看网卡信息
+	<pre>brctl show</pre>
+- 默认设置
+	- 默认是nat模式
+- 修改宿主机的eth0网卡为桥接方式
+	<pre>#以下命令写脚本执行！！！
+	brctl addbr br0
+    brctl addif br0 eth0
+	ip addr del dev eth0 10.0.0.160/24
+    ifconfig br0 10.0.0.160/24 up
+	route add default gw 10.0.0.2</pre>
+- 修改虚拟机xml的网卡配置为桥接
+	<pre>< interface type='bridge'>
+      < mac address='52:54:00:1b:b4:e7'/>
+      < source bridge='br0'/></pre>
+###KVM的优化
+1. CPU
+	1. 绑定到某个cpu，提高对cpu cache的命中率
+		<pre># taskset -cp 0 8544
+		pid 8544's current affinity list: 0-3
+		pid 8544's new affinity list: 0
+		taskset --help</pre>
+2. 内存
+	>要开通硬件内存的EPT技术(bios)  
+	>配置大页内存（hugepage,系统级）  
+	>系统已经帮我们设置好了。
+3. IO
+	> <pre># cat /sys/block/sda/queue/scheduler 
+	noop [deadline] cfq</pre>
+	1. noop
+		>什么都不干，该怎么请求就怎么请求，针对SSD磁盘
+	2. cfq
+		>完全公平的调度算法
+	3. deadline
+		>最后期限算法，防止写操作不能被读取而饿死的现象
+	4. 设置方法
+		`echo noop > /sys/block/sda/queue/scheduler #对应的磁盘`
+	5. IOcache优化  
+		IO cache要经过gues host OS（虚拟机）和Host OS（宿主机）的pagecache,配置方式有三种：writethrough、none、writeback。其中writethrough最安全，性能较差。none、writeback是性能较好，但不安全、默认的writethrough
