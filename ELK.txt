@@ -273,6 +273,7 @@
 	input{
 	  file {
 	    path => "/var/log/nginx/access_json.log"
+	    tupe => "nginx-access-log"
 	    codec => "json"
 	  }
 	}

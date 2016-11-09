@@ -8,4 +8,135 @@
 - 三个组件
 	- 镜像
 	- 容器
+		>容器从镜像创建的叫实例，之间是互相隔离，但不是很彻底
 	- 仓库 
+- 与kvm的区别
+	![](http://s1.51cto.com/wyfs02/M01/4C/28/wKioL1Q3c0LwucCMAAB3V63IeQw310.jpg) 
+- 什么是docker
+	- docker是docker公司开源的一个基于LXC技术之上构建的Container容器引擎，源代码托管在GitHub上，基于Go语言并遵从Apache2.0协议开源。
+	- 是通过内核虚拟机技术(namespaces及cgroups等)来提供容器的资源隔离与安全保障等。通过操作系统层的虚拟化实现隔离，所以在运行时，不需要类似虚拟机额外的操作系统开销，提高资源利用率
+###1. Docker镜像管理
+- 搜索镜像： `docker search`
+- 获取镜像： `docker pull`
+- 查看镜像： `docker images`
+- 删除镜像： `docker rmi IMAGE ID`
+- 删除容器： `docker rm mydocker`
+
+####导入镜像文件和导出
+- 导入： `docker load --input centos.tar`
+- 导出： `docker save -o centos.tar centos`
+- 启动命令(相当于创建一个容器)：
+	- `docker run [-args(必须在镜像名称前边)] centos [command(可选，可有可无)]`
+	- `docker run centos /bin/echo "hello world"`
+	- `docker run --rm centos /bin/echo "hello world"`#执行完后删除容器
+	- 内容解释
+		<pre># docker ps -a
+	CONTAINER ID        IMAGE               COMMAND                  CREATED             STATUS                      PORTS               NAMES
+	15ad134555b0        centos              "/bin/echo 'hello wor"   49 seconds ago      Exited (0) 47 seconds ago                       dreamy_lamarr</pre>
+		- ID :系统产生
+		- name字段名称：dreamy_lamarr(系统产生，可自己指定)
+		- 以上两者用于docker管理
+- 查看docker进程
+	- `docker ps -a` 
+- 实例1  
+	`docker run --name mydocker -t -i centos /bin/bash` 
+	- 说明：新增一个名为mydocker的以centos镜像为基础的容器，同时打开tty接口和开启input功能，执行的命令为/bin/bash
+	- 使用完再次使用的命令：  
+		`docker start mydocker`
+	- 进入容器：  
+		`docker attack mydocker` ：这个命令执行后会退出容器，生产不用。 
+- 涉及到不可变基础设施
+	- 对于容器跑的业务，要么新增一个，要么不动，以免出现问题 
+- nsenter
+	- `yum install -y util-linux`。为`namespace enter`的缩写
+- docker参数
+	<pre># docker --help
+	Usage: docker [OPTIONS] COMMAND [arg...]
+	       docker daemon [ --help | ... ]
+	       docker [ --help | -v | --version ]
+	
+	A self-sufficient runtime for containers.
+	
+	Options:
+	
+	  --config=~/.docker              Location of client config files
+	  -D, --debug                     Enable debug mode
+	  -H, --host=[]                   Daemon socket(s) to connect to
+	  -h, --help                      Print usage
+	  -l, --log-level=info            Set the logging level
+	  --tls                           Use TLS; implied by --tlsverify
+	  --tlscacert=~/.docker/ca.pem    Trust certs signed only by this CA
+	  --tlscert=~/.docker/cert.pem    Path to TLS certificate file
+	  --tlskey=~/.docker/key.pem      Path to TLS key file
+	  --tlsverify                     Use TLS and verify the remote
+	  -v, --version                   Print version information and quit
+	
+	Commands:
+	    attach    Attach to a running container
+	    build     Build an image from a Dockerfile
+	    commit    Create a new image from a container's changes
+	    cp        Copy files/folders between a container and the local filesystem
+	    create    Create a new container
+	    diff      Inspect changes on a container's filesystem
+	    events    Get real time events from the server
+	    exec      Run a command in a running container
+	    export    Export a container's filesystem as a tar archive
+	    history   Show the history of an image
+	    images    List images
+	    import    Import the contents from a tarball to create a filesystem image
+	    info      Display system-wide information
+	    inspect   Return low-level information on a container or image
+	    kill      Kill a running container
+	    load      Load an image from a tar archive or STDIN
+	    login     Register or log in to a Docker registry
+	    logout    Log out from a Docker registry
+	    logs      Fetch the logs of a container
+	    network   Manage Docker networks
+	    pause     Pause all processes within a container
+	    port      List port mappings or a specific mapping for the CONTAINER
+	    ps        List containers
+	    pull      Pull an image or a repository from a registry
+	    push      Push an image or a repository to a registry
+	    rename    Rename a container
+	    restart   Restart a container
+	    rm        Remove one or more containers
+	    rmi       Remove one or more images
+	    run       Run a command in a new container
+	    save      Save an image(s) to a tar archive
+	    search    Search the Docker Hub for images
+	    start     Start one or more stopped containers
+	    stats     Display a live stream of container(s) resource usage statistics
+	    stop      Stop a running container
+	    tag       Tag an image into a repository
+	    top       Display the running processes of a container
+	    unpause   Unpause all processes within a container
+	    update    Update resources of one or more containers
+	    version   Show the Docker version information
+	    volume    Manage Docker volumes
+	    wait      Block until a container stops, then print its exit code</pre> 
+- 获取一个docker 容器的进程ID并进入改容器：
+	<pre># docker inspect -f "{{ .State.Pid }}"  mydocker 
+	21411`
+	nsenter -t 21411 -m -u -i -n -p
+	---参数说明
+	-t :target process to get namespaces from
+	-m :enter mount namespace
+	-u :enter UTS namespace (hostname etc)
+	-i :enter System V IPC namespace
+	-n :enter network namespace
+	-p :enter pid namespace</pre>
+- 小结：进入容器脚本
+	<pre>vi continer.sh
+	#!/bin/bash
+	#use nsenter access docker
+	
+	docker_in() {
+	  Name_ID=$1
+	  Pid=$(docker inspect -f "{{ .State.Pid }}" ${Name_ID})
+	  nsenter -t $Pid -m -u -i -n -p
+	}
+	
+	docker_in $1</pre>
+	>然后使用salt批量分发下去。另一个进入的容器的命令的：
+	>`docker exec -it mydocker /bin/bash`
+	
