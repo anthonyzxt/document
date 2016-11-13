@@ -21,6 +21,13 @@
 - 查看镜像： `docker images`
 - 删除镜像： `docker rmi IMAGE ID`
 - 删除容器： `docker rm mydocker`
+- 启动命令： `docker run -n name -h hostname`
+- 停止容器： `docker stop Container ID`
+- 查看容器： `docker ps -a -l`
+- 进入容器： `docker exec|docker attach|nsenter`
+- 查看端口： `docker port container ID|name`
+- 杀死正在运行的容器： `docker kill ID(docker kill $(docker ps -a -q))`
+
 
 ####导入镜像文件和导出
 - 导入： `docker load --input centos.tar`
@@ -126,7 +133,7 @@
 	-n :enter network namespace
 	-p :enter pid namespace</pre>
 - 小结：进入容器脚本
-	<pre>vi continer.sh
+	<pre># vi continer.sh
 	#!/bin/bash
 	#use nsenter access docker
 	
@@ -139,4 +146,135 @@
 	docker_in $1</pre>
 	>然后使用salt批量分发下去。另一个进入的容器的命令的：
 	>`docker exec -it mydocker /bin/bash`
-	
+
+###Docker能干什么
+####主要功能：
+1. simplifying configuration(简化配置，环境和代码在一起)
+2. Code pipeline Management(代码流水线管理)
+3. developer productivity(提高开发效率)
+4. app isolation
+5. server consolidation
+6. debugging capabilities
+7. Multi-tenancy(多租户)
+8. rapid deployment（快速部署）
+
+####小结
+- 面向产品： 产品交付
+- 面向开发： 简化环境配置
+- 面向测试： 多版本测试
+- 面向运维： 环境一致性
+- 面向架构： 自动化扩容（微服务）
+
+###docke-网络访问
+- 随机映射
+	- docker run -P
+		>示例：`docker run -d -P nginx`
+- 指定映射
+	-  -p hostPort:containerPort
+	-  -p ip:hostPort:containerPort
+		>示例： `docker run -d -p 10.0.0.160:81:80 --name mynginx nginx`
+	-  -p ip::containerPort
+	-  -p hostPort:containerPort
+	-  -p hostPort:containerPort:udp
+	-  -p 81:80 -p 442:443
+###docker-数据管理  
+- 数据卷
+	>修改立刻生效，不会影响性能，挂载物理机文件到容器里。
+	- 用法1：
+		> -v /data
+		> `# docker run -d --name nginx-volume-test1 -v /data nginx`
+		> -v /srt:/drt #移植性差
+		> `# docker run -d --name nginx-volume-test1 -v /data/nginx-volume-test2:/data nginx`
+		> 查看挂载信息
+		> `# docker inspect -f {{.Mounts}} nginx-volume-test1`
+- 数据卷容器
+	>作用：相当于NFS的功能，只要1个起作用了，其他的便都可以直接使用,挂载已存在的数据卷上
+	> `# docker run -it --name volume-test3 --volumes-from nginx-volume-test2 centos /bin/bash`
+- UFS
+###docker-镜像构建
+- 两种方式
+	- 手动构建
+		1. 基于centos构建
+			`docker run --name mynginx -it centos`
+		2. 安装epel源
+			` rpm -ivh http://mirrors.aliyun.com/epel/epel-release-latest-7.noarch.rpm`
+		3. 安装nginx
+			`yum install nginx`
+		4. 修改nginx配置 使其在前台运行
+			<pre>vi /etc/nginx/nginx.conf
+			daemon off;</pre>
+		5. 提交，生产镜像
+			<pre># docker commit -m "my nginx" faa833c44b9d oldboy/mynginx:v1
+			# 仓库名/镜像名：版本。保存在本地</pre>
+		6. 测试
+			`docker run -d --name n3 -p 81:80 oldboy/mynginx:v1 nginx`
+	- Dockerfile构建
+		1. 配置dockerfile文件
+			<pre># vi Dockerfile 
+			#This Dockerfile 
+			#base image
+			FROM centos
+			
+			#Maintainer
+			MAINTAINER Anthony.zhou xxx@gmail.com
+			
+			#commands
+			RUN rpm -ivh http://mirrors.aliyun.com/epel/epel-release-latest-7.noarch.rpm
+			RUN yum install -y nginx && yum clean all
+			RUN echo "daemon off;" >> /etc/nginx/nginx.conf
+			ADD index.html /usr/share/nginx/html/index.html  #这里可以添加配置文件
+			EXPOSE 80
+			CMD ["nginx"]</pre>
+		2. 生成配置相关页面`index.html`
+			`echo "hh test">index.html`
+		3. 构建镜像
+			`docker build -t mynginx:v2 .`
+		4. 启动容器测试
+			`docker run --name ngv2 -d -p 82:80 mynginx:v2`
+		5. 访问页面
+	- dockerfile命令讲解
+		- FROM
+			>指定镜像基础
+		- MAINTAINER
+			>指定维护者信息
+		- RUN
+			>在命令前面加上RUN即可
+		- ADD
+			>copy文件，会自动解压
+		- WORKDIR
+			>设置当前工作目录，即`CD`到了某个目录
+		- VOLUME
+			>设置卷，挂载主机目录
+		- EXPOSE
+			>指定对外的端口
+		- CMD 
+			>指定镜像启动后要干什么事
+###docker实践
+- 分成设计
+- 从下往上，依次为：系统层、环境层、应用层 
+####生产设计实例
+- 目录结构
+	- system
+		- centos
+		- ubuntu
+		- centos-ssh
+	- runtime
+		- php
+		- java
+		- python
+	- app
+		- xxx-api
+		- xxx-admin
+	>大概目录，提交到github上
+- 以centos实例
+	- 基础的系统级别镜像
+		<pre>#Docker for centos
+		FROM centos
+		MAINTAINER zhou
+		ADD epel.repo /etc/yum.repo.d/
+		 
+		RUN yum install -y wget mysql-devel supervisor git redis tree net-tools sudo ps
+		misc && yum clean all
+		##构建镜像
+		# docker build -t oldboy/centos:base .</pre> 
+- supervisor 多进程管理

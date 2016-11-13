@@ -118,7 +118,7 @@
 		
 		>查看salt进程名： `yum install  -y python-setproctitle`
 ##saltstack数据系统##
-两种数据系统
+- 两种数据系统
 	- Grains （谷粒）
 	- Pillar	 （柱子）
 ###Grains###
