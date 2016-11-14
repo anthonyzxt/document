@@ -267,6 +267,7 @@
 		- xxx-admin
 	>大概目录，提交到github上
 - 以centos实例
+	-  supervisor 多进程管理
 	- 基础的系统级别镜像
 		<pre>#Docker for centos
 		FROM centos
@@ -277,4 +278,74 @@
 		misc && yum clean all
 		##构建镜像
 		# docker build -t oldboy/centos:base .</pre> 
+- 配置python环境
 - supervisor 多进程管理
+- centos镜像加入ssh
+	- 在基础镜像上创建其他环境
+	<pre>[root@cobbler cent-ssh]# tree
+	.
+	|-- Dockerfile
+	`-- epel.repo
+	# cat Dockerfile 
+	#Docker for centos
+	FROM centos
+	MAINTAINER zhou
+	ADD epel.repo /etc/yum.repo.d/
+	
+	RUN yum install -y openssh-clients openssl-devel openssh-server wget mysql-devel supervisor git redis tree net-tools sudo psmisc && yum clean all
+	
+	#for sshd
+	RUN ssh-keygen -t rsa -f /etc/ssh/ssh_host_rsa_key
+	RUN ssh-keygen -t ecdsa -f /etc/ssh/ssh_host_ecdsa_key 
+	RUN echo "root:oldboy" | chpasswd</pre>
+- 配置python环境
+- requirements方式（模仿openstack）
+	- 流程
+		- reqirements.txt
+		- XXX-admin
+		- pip install -r requirements.txt
+		- python-demo.ini(参考supervisor.conf)
+	- 以app为例
+		<pre>[root@cobbler shop-api]# tree
+		.
+		|-- Dockerfile
+		|-- app-supervisor.ini
+		|-- app.py
+		`-- requirements.txt
+		------
+		# cat Dockerfile 
+		#Docker for python
+		FROM oldboy/python-ssh
+		
+		#maintainer
+		MAINTAINER zhou
+		
+		#python env
+		RUN useradd -s /sbin/nologin -M www
+		
+		ADD app.py /opt/app.py
+		ADD requirements /opt/
+		ADD app-supervisor.ini /etc/supervisord.d/ 
+		
+		#upgrade pip
+		RUN /usr/bin/pip2.7 install -r /opt/requirements.txt
+		
+		#port
+		EXPOSE 22 5000
+		
+		#CMD
+		CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
+		------
+		[root@cobbler shop-api]# vim app-supervisor.ini
+		[program:shop-api]
+		command=/usr/bin/python2.7 /opt/app.py
+		process_name=%(program_name)s
+		autostart=false
+		user=www
+		stdout_logfile=/a/path
+		stderr_logfile=/a/path
+		
+		[program:sshd]
+		command=/usr/sbin/sshd -D
+		process_name=%(program_name)s
+		autostart=false</pre> 
