@@ -278,3 +278,5 @@
 		##构建镜像
 		# docker build -t oldboy/centos:base .</pre> 
 - supervisor 多进程管理
+	>作用：当服务自动关闭后，supervisor会帮助自动重启该服务，
+	>

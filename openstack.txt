@@ -1,0 +1,29 @@
+#openstack
+###1. 简介
+1. 它是IAAS层的实现。
+2. 是一个云平台管理项目
+3. 三大基础核心：计算 网络 存储
+4. 目标是简化资源的管理和分配
+###2. 环境准备
+
+##shared services(共享服务)
+###3. 验证服务keystone
+- 作用
+	- 认证管理
+###4. 镜像服务Glance
+- 作用
+	- 提供虚拟镜像的注册和存储管理
+###5. 计算服务Nove
+- 作用
+	- 通过虚拟化技术提供计算资源池
+
+###6. 网络服务Neutron
+- 作用
+	- 实现虚拟机的网络资源管理
+###7. 创建第一台openstack云主机
+###8. 管理服务horizon
+- 作用
+	- 基于openstack api接口使用django开发的web管理
+
+###存储swift cinder
+###高层服务 higher-level services
