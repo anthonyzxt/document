@@ -5,14 +5,102 @@
 3. 三大基础核心：计算 网络 存储
 4. 目标是简化资源的管理和分配
 ###2. 环境准备
+- 文档地址  
+	[http://docs.openstack.org/newton/install-guide-rdo/environment-sql-database.html](http://docs.openstack.org/newton/install-guide-rdo/environment-sql-database.html)
+- 基础服务
+	- openstack环境安装
+	- MySQL
+		- openstack各个组件使用
+		- 生成环境需要做集群
+	- RabbitMQ
+		- 分布式消息队列
+		- 通信枢纽
+		- 支持集群
+	- 说明
+		- 除了Horizon，openstack其它组件都要连接数据库（数据库需备份）
+		- 除了Horizon和keystone，其它服务都需要连接RabbitMQ（要做高可用） 
+- 增加需要的库并授权(安装参考官网文档)
+	- keystone
+	- glance
+	- nove
+	- nove_api
+	- neutron
+	<pre>create database neutron;
+	grant all on neutron.* to 'neutron'@'localhost' identified by 'neutron';
+	grant all on neutron.* to 'neutron'@'%' identified by 'neutron';</pre>
 
+- Rabbit-MQ相关(安装授权参照官网文档)
+	- 开启Rabbit-MQ web管理界面
+		<pre>rabbitmq-plugins list
+		rabbitmq-plugins enable rabbitmq_management</pre>
+	- 访问网址：http://IP:15672 user and pwd = guest
+	- 监控： http://IP:15672/api 做监控用
+- Rabbit-MQ
+	- 角色1：硬盘节点
+		>把消息持久化在硬盘上，做高可用
+	- 角色2：内存节点
+		>相当于负责均衡
 ##shared services(共享服务)
 ###3. 验证服务keystone
 - 作用
 	- 认证管理
+- 功能
+	- 用户认证：用户权限与用户行为跟踪
+		- 用户、项目、令牌、角色
+	- 服务目录：提供一个服务目录，包括所有服务项与相关api的端点
+		- service:服务
+		- endpoint： 端点
+- 配置
+	<pre>grep '^[a-Z]' /etc/keystone/keystone.conf 
+	[DEFAULT]
+	admin_token = 684f42e5bc1debeabb70
+	[database]
+	connection = mysql+pymysql://keystone:keystone@10.0.0.160/keystone
+	[memcache]
+	servers = 10.0.0.160:11211
+	[token]
+	provider = fernet 
+	driver = memcache </pre>
+	- 同步数据库
+		`su -s /bin/sh -c "keystone-manage db_sync" keystone`
+	- 检查
+		`mysql -h 10.0.0.160 -ukeystone -pkeystone -e "use keystone;show tables;"`
+- 初始化fernet key证书
+	`keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone`
+- 启动memcached服务
+	<pre>systemctl enable memcached.service
+	systemctl start memcached.service
+	cat /etc/sysconfig/memcached</pre>
+- 配置apache
+	1. 修改servername,要不然起不来
+	2. `ln -s /usr/share/keystone/wsgi-keystone.conf /etc/httpd/conf.d/` 
+	3. 启动服务
+		<pre>systemctl enable httpd.service
+		systemctl start httpd.service</pre>	
+- 创建服务实体
+	- 设置连接keystone
+		<pre>export OS_TOKEN=684f42e5bc1debeabb70
+		export OS_URL=http://10.0.0.160:35357/v3
+		export OS_IDENTITY_API_VERSION=3</pre>
+	- 添加域
+		`openstack domain create --description "Default Domain" default`
+	- 添加项目
+		`openstack project create --domain default --description "Admin Project" admin`
+	- 添加用户  
+		` openstack user create --domain default --password-prompt admin`
+	- 添加角色  
+		`openstack role create admin`
+	- 绑定用户到域的某个项目上，授予某个角色
+		`openstack role add --project admin --user admin admin`  
+
 ###4. 镜像服务Glance
 - 作用
 	- 提供虚拟镜像的注册和存储管理
+
+### 监控服务ceilometer
+- 作用
+	- 提供监控和数据采集、计量服务
+
 ###5. 计算服务Nove
 - 作用
 	- 通过虚拟化技术提供计算资源池
@@ -26,4 +114,10 @@
 	- 基于openstack api接口使用django开发的web管理
 
 ###存储swift cinder
-###高层服务 higher-level services
+##高层服务 higher-level services
+###heat
+- 作用
+	- 自动化部署组件
+###Trove
+- 作用
+	- 提供数据库应用服务 
