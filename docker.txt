@@ -351,4 +351,12 @@
 - supervisor 多进程管理
 	>作用：当服务自动关闭后，supervisor会帮助自动重启该服务，
 	>
-
+###docker私有仓的搭建
+- 方案1步骤：
+	1. 申请证书
+	2. 部署
+	3. 验证
+	4. proxy_pass 5000
+	5. 运行仓库
+- 方案2：
+	- harbor（vmware/github） 
