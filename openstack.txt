@@ -78,7 +78,7 @@
 		<pre>systemctl enable httpd.service
 		systemctl start httpd.service</pre>	
 - 创建服务实体
-	- 设置连接keystone
+	- 设置环境变量连接keystone
 		<pre>export OS_TOKEN=684f42e5bc1debeabb70
 		export OS_URL=http://10.0.0.160:35357/v3
 		export OS_IDENTITY_API_VERSION=3</pre>
@@ -92,10 +92,85 @@
 		`openstack role create admin`
 	- 绑定用户到域的某个项目上，授予某个角色
 		`openstack role add --project admin --user admin admin`  
-
+- 创建一个新的project(Demo)、user(demo)、role(user)
+	<pre>openstack project create --domain default   --description "Demo Project" demo
+	openstack user create --domain default   --password-prompt demo
+	openstack role create user
+	openstack role add --project demo --user demo user
+	</pre>
+- 创建`service`项目，管理一下用户`glance nove neutron `授以admin角色
+	<pre>openstack project create --domain default --description "Service Project" service
+	openstack user create --domain default --password-prompt glance
+	openstack role add --project service --user glance admin</pre>
+####服务目录
+- 创建服务注册
+	<pre>openstack service create --name keystone --description "OpenStack Identity" identity 
+	openstack endpoint create --region RegionOne   identity public http://10.0.0.160:5000/v3 
+	openstack endpoint create --region RegionOne   identity internal http://10.0.0.160:5000/v3 
+	openstack endpoint create --region RegionOne   identity admin http://10.0.0.160:35357/v3 </pre>
+- 验证
+	<pre>unset OS_TOKEN OS_URL
+	openstack --os-auth-url http://10.0.0.160:35357/v3 \
+		--os-project-domain-name default --os-user-domain-name  default --os-project-name admin --os-username admin  token issue</pre>
+- 使用脚本验证
+	- admin
+		<pre># cat admin_openrc 
+		export OS_PROJECT_DOMAIN_NAME=default
+		export OS_USER_DOMAIN_NAME=default
+		export OS_PROJECT_NAME=admin
+		export OS_USERNAME=admin
+		export OS_PASSWORD=admin
+		export OS_AUTH_URL=http://10.0.0.160:35357/v3
+		export OS_IDENTITY_API_VERSION=3
+		export OS_IMAGE_API_VERSION=2
+		openstack token issue</pre>
+	- user-demo
+		<pre># cat demo_openrc 
+		export OS_PROJECT_DOMAIN_NAME=default
+		export OS_USER_DOMAIN_NAME=default
+		export OS_PROJECT_NAME=demo
+		export OS_USERNAME=demo
+		export OS_PASSWORD=demo
+		export OS_AUTH_URL=http://10.0.0.160:5000/v3
+		export OS_IDENTITY_API_VERSION=3
+		export OS_IMAGE_API_VERSION=2</pre>
 ###4. 镜像服务Glance
 - 作用
 	- 提供虚拟镜像的注册和存储管理
+- 两个服务
+	- API(port:9292)
+		- 接受云系统镜像的创建、删除、读取请求
+	- Registry (port:9191)
+		- 云系统的镜像注册服务
+- 安装
+	`yum install -y openstack-glance` 
+- 配置glance-api
+	<pre>vi /etc/glance/glance-api.conf
+	[database]
+	connection = mysql+pymysql://glance:glance@10.0.0.160/glance</pre>
+- 配置glance-Registry
+	<pre>vi /etc/glance/glance-registry.conf
+	[database]
+	connection = mysql+pymysql://glance:glance@10.0.0.160/glance</pre>
+- 同步数据库
+	<pre>su -s /bin/sh -c "glance-manage db_sync" glance</pre>
+- 配置认证服务访问
+	<pre>vi /etc/glance/glance-api.conf
+	[keystone_authtoken]
+	auth_uri = http://10.0.0.160:5000
+	auth_url = http://10.0.0.160:35357
+	memcached_servers = 10.0.0.160:11211
+	auth_type = password
+	project_domain_name = default
+	user_domain_name = default
+	project_name = service
+	username = glance
+	password = glance
+	
+	[paste_deploy]
+	flavor = keystone</pre>
+
+<pre></pre>
 
 ### 监控服务ceilometer
 - 作用
