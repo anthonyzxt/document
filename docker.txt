@@ -279,8 +279,11 @@
 		##构建镜像
 		# docker build -t oldboy/centos:base .</pre> 
 
+<<<<<<< HEAD
 - 配置python环境
 - supervisor 多进程管理
+=======
+>>>>>>> 47556a882d755107674bff9309371cd92fda4b2b
 - centos镜像加入ssh
 	- 在基础镜像上创建其他环境
 	<pre>[root@cobbler cent-ssh]# tree
@@ -313,30 +316,30 @@
 		|-- app-supervisor.ini
 		|-- app.py
 		`-- requirements.txt
-		------
-		# cat Dockerfile 
-		#Docker for python
+		---
+		\# cat Dockerfile 
+		\#Docker for python
 		FROM oldboy/python-ssh
 		
-		#maintainer
+		\#maintainer
 		MAINTAINER zhou
 		
-		#python env
+		\#python env
 		RUN useradd -s /sbin/nologin -M www
 		
 		ADD app.py /opt/app.py
 		ADD requirements /opt/
 		ADD app-supervisor.ini /etc/supervisord.d/ 
 		
-		#upgrade pip
+		\#upgrade pip
 		RUN /usr/bin/pip2.7 install -r /opt/requirements.txt
 		
-		#port
+		\#port
 		EXPOSE 22 5000
 		
-		#CMD
+		\#CMD
 		CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
-		------
+		
 		[root@cobbler shop-api]# vim app-supervisor.ini
 		[program:shop-api]
 		command=/usr/bin/python2.7 /opt/app.py
@@ -353,4 +356,16 @@
 - supervisor 多进程管理
 	>作用：当服务自动关闭后，supervisor会帮助自动重启该服务，
 	>
+<<<<<<< HEAD
 
+=======
+###docker私有仓的搭建
+- 方案1步骤：
+	1. 申请证书
+	2. 部署
+	3. 验证
+	4. proxy_pass 5000
+	5. 运行仓库
+- 方案2：
+	- harbor（vmware/github） 
+>>>>>>> 47556a882d755107674bff9309371cd92fda4b2b
