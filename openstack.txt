@@ -22,8 +22,8 @@
 - 增加需要的库并授权(安装参考官网文档)
 	- keystone
 	- glance
-	- nove
-	- nove_api
+	- nova
+	- nova_api（nova）
 	- neutron
 	<pre>create database neutron;
 	grant all on neutron.* to 'neutron'@'localhost' identified by 'neutron';
@@ -154,7 +154,7 @@
 	connection = mysql+pymysql://glance:glance@10.0.0.160/glance</pre>
 - 同步数据库
 	<pre>su -s /bin/sh -c "glance-manage db_sync" glance</pre>
-- 配置认证服务访问
+- 配置认证服务访问glance-api和glance-Registry
 	<pre>vi /etc/glance/glance-api.conf
 	[keystone_authtoken]
 	auth_uri = http://10.0.0.160:5000
@@ -168,10 +168,41 @@
 	password = glance
 	
 	[paste_deploy]
-	flavor = keystone</pre>
+	flavor = keystone
+	
+	vi /etc/glance/glance-registry.conf
+	auth_uri = http://10.0.0.160:5000
+	auth_url = http://10.0.0.160:35357
+	memcached_servers = 10.0.0.160:11211
+	auth_type = password
+	project_domain_name = default
+	user_domain_name = default
+	project_name = service
+	username = glance
+	password = glance
 
+	[paste_deploy]
+	flavor = keystone	
+	</pre>
+	
+- 配置镜像存储位置
+	<pre>vi /etc/glance/glance-api.conf
+	[glance_store]
+	stores = file,http
+	default_store = file
+	filesystem_store_datadir = /var/lib/glance/images/</pre>
+- 配置开机启动
+	<pre>systemctl enable openstack-glance-api.service openstack-glance-registry.service
+	systemctl start openstack-glance-api.service openstack-glance-registry.service</pre>
+- 在keystone上注册glance服务
+	<pre>openstack service create --name glance 	--description "OpenStack Image" image
+	openstack endpoint create --region RegionOne image public http://10.0.0.160:9292
+	openstack endpoint create --region RegionOne image internal http://10.0.0.160:9292
+	openstack endpoint create --region RegionOne image admin http://10.0.0.160:9292</pre>
+- 上传镜像验证
+	<pre>openstack image create "cirros" --file cirros-0.3.4-x86_64-disk.img --disk-format qcow2 --container-format bare --public
+	openstack image list</pre>
 <pre></pre>
-
 ### 监控服务ceilometer
 - 作用
 	- 提供监控和数据采集、计量服务
@@ -179,6 +210,90 @@
 ###5. 计算服务Nove
 - 作用
 	- 通过虚拟化技术提供计算资源池
+- 服务介绍
+	- API
+		>负责接收和响应外部请求。支持openstack API,EC2 API。外部访问nova的唯一途径。
+	- Cert
+		>负责身份认证EC2，为了兼容AWS，可以不启动
+	- Scheduler
+		>用于云主机调度，它的作用是决策虚拟机创建在哪个主机（节点）上
+		>计算步骤2步：1.过滤(fliter) 2.计算权值(Weight)
+	- Conductor
+		>计算节点访问数据的中间件
+	- Consoleauth
+		>用于控制台的授权验证
+	- Novncproxy
+		>VNC代理
+####服务配置管理部分
+- 1.配置数据库
+	<pre>vi /etc/nova/nova.conf
+	[api_database]
+	
+	connection = mysql+pymysql://nova:nova@10.0.0.160/nova_api
+	
+	[database]
+	
+	connection = mysql+pymysql://nova:nova@10.0.0.160/nova</pre>
+	- 同步数据
+	<pre>su -s /bin/sh -c "nova-manage api_db sync" nova
+	su -s /bin/sh -c "nova-manage db sync" nova
+	mysql -h 10.0.0.160 -unova -pnova -e "use nova_api;show tables" 
+	mysql -h 10.0.0.160 -unova -pnova -e "use nova;show tables"</pre>
+- 2.keystone令牌配置
+	<pre># vi /etc/nova/nova.conf
+	[keystone_authtoken]
+	auth_uri = http://10.0.0.160:5000
+	auth_url = http://10.0.0.160:35357
+	memcached_servers = 10.0.0.160:11211
+	auth_type = password
+	project_domain_name = default
+	user_domain_name = default
+	project_name = service
+	username = nova
+	password = nova
+
+	[DEFAULT]
+
+	auth_strategy = keystone</pre>
+- 3.rabbitmq配置
+	<pre># vi /etc/nova/nova.conf
+	rpc_backend=rabbit
+	rabbit_host=10.0.0.160
+	rabbit_port=5672
+	rabbit_userid=openstack
+	rabbit_password=openstack</pre>
+- 4.nova服务配置
+	- 在``[DEFAULT]``部分，只启用计算和元数据API
+		<pre>[DEFAULT]
+		enabled_apis = osapi_compute,metadata</pre>
+	- 启用网络服务支持和使用neutron防火墙
+		<pre>[DEFAULT]
+
+		use_neutron = True
+		firewall_driver = nova.virt.firewall.NoopFirewallDriver</pre>	
+- 5.配置vncproxy
+	<pre># vi /etc/nova/nova.conf
+	[vnc]
+	vncserver_listen=10.0.0.160
+	vncserver_proxyclient_address =10.0.0.160</pre>
+- 6.配置glance
+	<pre># vi /etc/nova/nova.conf
+	[glance]
+	api_servers = http://controller:9292</pre>
+- 7.配置锁路径
+	<pre># vi /etc/nova/nova.conf
+	[oslo_concurrency]
+	lock_path = /var/lib/nova/tmp</pre>
+- 启动服务
+	<pre># systemctl enable openstack-nova-api.service openstack-nova-consoleauth.service openstack-nova-scheduler.service openstack-nova-conductor.service openstack-nova-novncproxy.service
+	# systemctl start openstack-nova-api.service openstack-nova-consoleauth.service openstack-nova-scheduler.service openstack-nova-conductor.service openstack-nova-novncproxy.service</pre>
+####服务注册
+	<pre>. admin_openrc
+	openstack service create --name nova --description "OpenStack Compute" compute
+	openstack endpoint create --region RegionOne compute public http://10.0.0.160:8774/v2.1/%\(tenant_id\)s
+	openstack endpoint create --region RegionOne compute admin http://10.0.0.160:8774/v2.1/%\(tenant_id\)s 
+	openstack endpoint create --region RegionOne compute internal http://10.0.0.160:8774/v2.1/%\(tenant_id\)s 
+	</pre>
 
 ###6. 网络服务Neutron
 - 作用
