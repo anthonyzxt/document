@@ -109,122 +109,113 @@
 	>configuration->hosts->选择主机->添加JMX监控—>模板选择通用模板即可 
  
 ##zabbix-nginx监控##
-	>流程：  
-		1. 确实nginx服务开启  	
-		2. 编写脚本进行数据采集      
-			2.1 采集脚本
-			<pre>
-			#!/bin/bash
-			############################################################
-			# $Name:         zabbix_linux_plugins.sh
-			# $Version:      v1.0
-			# $Function:     zabbix plugins
-			# $Author:       Jason Zhao
-			# $organization: www.unixhot.com
-			# $Create Date:  2014-08-10
-			# $Description:  Monitor Linux Service Status
-			############################################################ 
-			tcp_status_fun(){
-				TCP_STAT=$1
-				#netstat -n | awk '/^tcp/ {++state[$NF]} END {for(key in state) print key,state[key]}' > /tmp/netstat.tmp
-				ss -ant | awk 'NR>1 {++s[$1]} END {for(k in s) print k,s[k]}' > /tmp/netstat.tmp
-				TCP_STAT_VALUE=$(grep "$TCP_STAT" /tmp/netstat.tmp | cut -d ' ' -f2)
-				if [ -z $TCP_STAT_VALUE ];then
-					TCP_STAT_VALUE=0
-				fi
-				echo $TCP_STAT_VALUE
+流程：  
+	1. 确实nginx服务开启  	
+	2. 编写脚本进行数据采集      
+		2.1采集脚本
+		<pre>
+		#!/bin/bash
+		tcp_status_fun(){
+			TCP_STAT=$1
+			#netstat -n | awk '/^tcp/ {++state[$NF]} END {for(key in state) print key,state[key]}' > /tmp/netstat.tmp
+			ss -ant | awk 'NR>1 {++s[$1]} END {for(k in s) print k,s[k]}' > /tmp/netstat.tmp
+			TCP_STAT_VALUE=$(grep "$TCP_STAT" /tmp/netstat.tmp | cut -d ' ' -f2)
+			if [ -z $TCP_STAT_VALUE ];then
+				TCP_STAT_VALUE=0
+			fi
+			echo $TCP_STAT_VALUE
 			}
-			nginx_status_fun(){
-				NGINX_PORT=$1
-				NGINX_COMMAND=$2
-				nginx_active(){
-			        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Active' | awk '{print $NF}'
-			        }
-				nginx_reading(){
-			        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Reading' | awk '{print $2}'
-			       }
-				nginx_writing(){
-			        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Writing' | awk '{print $4}'
-			       }
-				nginx_waiting(){
-			        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Waiting' | awk '{print $6}'
-			       }
-				nginx_accepts(){
-			        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| awk NR==3 | awk '{print $1}'++
-			       }
-				nginx_handled(){
-			        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| awk NR==3 | awk '{print $2}'
-			       }
-				nginx_requests(){
-			        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| awk NR==3 | awk '{print $3}'
-			       }
-			  	case $NGINX_COMMAND in
-					active)
-						nginx_active;
-						;;
-					reading)
-						nginx_reading;
-						;;
-					writing)
-						nginx_writing;
-						;;
-					waiting)
-						nginx_waiting;
-						;;
-					accepts)
-						nginx_accepts;
-						;;
-					handled)
-						nginx_handled;
-						;;
-					requests)
-						nginx_requests;
-					esac 
-			}
-			memcached_status_fun(){
-				M_PORT=$1
-				M_COMMAND=$2
-				echo -e "stats\nquit" | nc 127.0.0.1 "$M_PORT" | grep "STAT $M_COMMAND " | awk '{print $3}'
-			}
-			redis_status_fun(){
-				R_PORT=$1
-				R_COMMAND=$2
-				(echo -en "INFO \r\n";sleep 1;) | nc 127.0.0.1 "$R_PORT" > /tmp/redis_"$R_PORT".tmp
-				REDIS_STAT_VALUE=$(grep ""$R_COMMAND":" /tmp/redis_"$R_PORT".tmp | cut -d ':' -f2)
-			 	echo $REDIS_STAT_VALUE	
-			}
-			main(){
-				case $1 in
-					tcp_status)
-						tcp_status_fun $2;
-						;;
-					nginx_status)
-						nginx_status_fun $2 $3;
-						;;
-					memcached_status)
-						memcached_status_fun $2 $3;
-						;;
-					redis_status)
-						redis_status_fun $2 $3;
-						;;
-					*)
-						echo $"Usage: $0 {tcp_status key|memcached_status key|redis_status key|nginx_status key}"
-				esac
-			}
-			main $1 $2 $3</pre>
-	2.2 修改agentd文件：
-	<pre>
-	vi /etc/zabbix/zabbix_agentd.conf
-	Include=/etc/zabbix/zabbix_agentd.d/\*.conf</pre>
-	2.3 重启服务
-	</pre>
-	Nginx修改：
-	<pre>location /nginx_status {
-        stub_status on;
-        access_log off;
-        allow 127.0.0.1;
-        deny all;
-        }</pre>
+		nginx_status_fun(){
+			NGINX_PORT=$1
+			NGINX_COMMAND=$2
+			nginx_active(){
+		        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Active' | awk '{print $NF}'
+		        }
+		nginx_reading(){
+		    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Reading' | awk '{print $2}'
+		       }
+		nginx_writing(){
+		    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Writing' | awk '{print $4}'
+		    }
+		nginx_waiting(){
+		    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Waiting' | awk '{print $6}'
+		    }
+		nginx_accepts(){
+		    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| awk NR==3 | awk '{print $1}'++
+		    }
+		nginx_handled(){
+		    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| awk NR==3 | awk '{print $2}'
+		    }
+		nginx_requests(){
+		    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| awk NR==3 | awk '{print $3}'
+		    }
+		
+		case $NGINX_COMMAND in
+			active)
+				nginx_active;
+			;;
+			reading)
+				nginx_reading;
+				;;
+			writing)
+				nginx_writing;
+				;;
+			waiting)
+				nginx_waiting;
+				;;
+			accepts)
+				nginx_accepts;
+				;;
+			handled)
+				nginx_handled;
+				;;
+			requests)
+				nginx_requests;
+				esac 
+		
+		memcached_status_fun(){
+			M_PORT=$1
+			M_COMMAND=$2
+			echo -e "stats\nquit" | nc 127.0.0.1 "$M_PORT" | grep "STAT $M_COMMAND " | awk '{print $3}'
+		}
+		redis_status_fun(){
+			R_PORT=$1
+			R_COMMAND=$2
+			(echo -en "INFO \r\n";sleep 1;) | nc 127.0.0.1 "$R_PORT" > /tmp/redis_"$R_PORT".tmp
+			REDIS_STAT_VALUE=$(grep ""$R_COMMAND":" /tmp/redis_"$R_PORT".tmp | cut -d ':' -f2)
+		 	echo $REDIS_STAT_VALUE	
+		}
+		main(){
+			case $1 in
+				tcp_status)
+					tcp_status_fun $2;
+					;;
+				nginx_status)
+					nginx_status_fun $2 $3;
+					;;
+				memcached_status)
+					memcached_status_fun $2 $3;
+					;;
+				redis_status)
+					redis_status_fun $2 $3;
+					;;
+				*)
+					echo $"Usage: $0 {tcp_status key|memcached_status key|redis_status key|nginx_status key}"
+			esac
+		}
+		main $1 $2 $3</pre>
+		
+		2.2 修改agentd文件：
+		<pre>vi /etc/zabbix/zabbix_agentd.conf
+	Include=/etc/zabbix/zabbix_agentd.d/*.conf</pre>
+		2.3 重启服务
+		Nginx修改：
+		<pre>location /nginx_status {
+        	stub_status on;
+        	access_log off;
+        	allow 127.0.0.1;
+        	deny all;
+        	}</pre>
 3. 这是用户自定义参数  
 	`UserParameter=linux_status[*],/etc/zabbix/zabbix_agentd.d/zabbix_linux_plugin.sh "$1" "$2" "$3"`
 4. 重启zabbix-agent  
@@ -258,7 +249,8 @@
 1. 导入TCP模板
 2. 相应主机添加模板
 3. 增加触发器
-	>1. 增加某台主机的触发器： `configuration`-> `hosts` -> `相应主机的Triggers` -> `Create Triggers`
+	>增加某台主机的触发器： `configuration`-> `hosts` -> `相应主机的Triggers` -> `Create Triggers`
+
 ##zabbix-告警通知##
 1. 告警脚本存放位置
 	<pre>cd /usr/lib/zabbix/alterscripts
@@ -313,30 +305,30 @@
 	`yum install percona-zabbix-templates php php-mysql`
 - 主要监控流程
 	>php脚本数据采集  
-	<pre>ls /var/lib/zabbix/percona/templates/
+		<pre>ls /var/lib/zabbix/percona/templates/
 	zabbix_agent_template_percona_mysql_server_ht_2.0.9-sver1.1.6.xml</pre>  
 	>shell调用这个php
-	<pre>ls /var/lib/zabbix/percona/scripts/
+		<pre>ls /var/lib/zabbix/percona/scripts/
 	get_mysql_stats_wrapper.sh</pre>
 	>zabbix配置文件
-	<pre>cp /var/lib/zabbix/percona/scripts/ss_get_mysql_stats.php{,.cnf} 
-	ls /var/lib/zabbix/percona/scripts/
-	ss_get_mysql_stats.php.cnf</pre>
+		<pre>cp /var/lib/zabbix/percona/scripts/ss_get_mysql_stats.php{,.cnf} 
+		ls /var/lib/zabbix/percona/scripts/
+		ss_get_mysql_stats.php.cnf</pre>
 	>zabbix模版文件
-	><pre>ls /var/lib/zabbix/percona/templates/
-	userparameter_percona_mysql.conf
-	vi /var/lib/zabbix/percona/scripts/ss_get_mysql_stats.php.cnf      
-	\<\?php		
-	$mysql_user = 'root';
-	$mysql_pass = '';</pre>
+		<pre>ls /var/lib/zabbix/percona/templates/
+		userparameter_percona_mysql.conf
+		# vi /var/lib/zabbix/percona/scripts/ss_get_mysql_stats.php.cnf      
+		\<\?php		
+		$mysql_user = 'root';
+		$mysql_pass = '';</pre>
 	>创建数据库专用监控用户
 
 ##zabbix-web监控##
 	>步骤：  
-	1. `Configuration`->`Hosts`->`linux-node2`-> 选择主机 `linux-node2`->`web`->`create web scebarios`；在创建步骤里的`steps`里边，一般选`Status codes`来报警  
-	2. web监控默认没有触发器，需自己添加触发器。附实用报警内容设置：
-	<pre>主旨部分：状态:{TRIGGER.STATUS}
-	内容部分： 主机:{HOST.NAME1}监控项:{ITEM.KEY1}:{ITEM.VALUE1}</pre>
+		1. `Configuration`->`Hosts`->`linux-node2`-> 选择主机 `linux-node2`->`web`->`create web scebarios`；在创建步骤里的`steps`里边，一般选`Status codes`来报警  
+		2. web监控默认没有触发器，需自己添加触发器。附实用报警内容设置：
+		<pre>主旨部分：状态:{TRIGGER.STATUS}
+		内容部分： 主机:{HOST.NAME1}监控项:{ITEM.KEY1}:{ITEM.VALUE1}</pre>
 
 ##zabbix监控模式##
 	1. 实际生产面临问题：  
@@ -347,7 +339,7 @@
 ##针对Agent：  
 	1. 被动模式(默认)  
 	2. 主动模式
-	    queue里大量延时时或当监控主机超过300+时，建议采用主动模式。主动模式需修改的配置：zabbix_agentd.conf
+	    >queue里大量延时时或当监控主机超过300+时，建议采用主动模式。主动模式需修改的配置：zabbix_agentd.conf
 		<pre>startagents=0
 		ServerActiver=本机IP
 		Hostname=本机主机名</pre>
@@ -355,7 +347,7 @@
 	3. 模板的修改
 	   clone模板，全部选中，mass update，type:zabbix agent(active)
 ###zabbix Proxy###
--运行模式：
+- 运行模式：
 	zabbix-server -> zabbix proxy(本地存有数据) ->zabbix agent    
     不能安装在同一台服务器上，要有数据库支持。  
 
@@ -372,7 +364,7 @@
 	AUTHORS  ChangeLog  COPYING  NEWS  README  schema.sql.gz
 	zcat schema.sql.gz |mysql -uzabbix_proxy -p zabbix_proxy</pre>
 - 修改proxyd服务端配置文件
-	<pre>vi /etc/zabbix/zabbix_proxy.conf
+	<pre># vi /etc/zabbix/zabbix_proxy.conf
 	Server=10.0.0.160
 	Hostname=Zabbix-proxy
 	LogFile=/var/log/zabbix/zabbix_proxy.log
@@ -403,9 +395,9 @@
 	systemctl restart zabbix-agent		
 	</pre>
 2. zabbix web设置  
-	- `configuration` -> `Actions` -> `auto registration` -> `Create action`  
-	- `conditions` -> `Host metadata like Linux`  
-	- `operations` -> `add host,host groups,template`等，其它的看情况添加
+	- ``configuration` -> `Actions` -> `auto registration` -> `Create action``  
+	- ``conditions` -> `Host metadata like Linux``  
+	- ``operations` -> `add host,host groups,template``等，其它的看情况添加
 ###主动发现###
 1. 自动发现discover  
 2. zabbix api  

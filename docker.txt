@@ -279,11 +279,8 @@
 		##构建镜像
 		# docker build -t oldboy/centos:base .</pre> 
 
-<<<<<<< HEAD
 - 配置python环境
-- supervisor 多进程管理
-=======
->>>>>>> 47556a882d755107674bff9309371cd92fda4b2b
+
 - centos镜像加入ssh
 	- 在基础镜像上创建其他环境
 	<pre>[root@cobbler cent-ssh]# tree
@@ -356,9 +353,6 @@
 - supervisor 多进程管理
 	>作用：当服务自动关闭后，supervisor会帮助自动重启该服务，
 	>
-<<<<<<< HEAD
-
-=======
 ###docker私有仓的搭建
 - 方案1步骤：
 	1. 申请证书
@@ -368,4 +362,4 @@
 	5. 运行仓库
 - 方案2：
 	- harbor（vmware/github） 
->>>>>>> 47556a882d755107674bff9309371cd92fda4b2b
+
