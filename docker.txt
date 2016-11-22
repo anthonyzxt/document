@@ -362,4 +362,16 @@
 	5. 运行仓库
 - 方案2：
 	- harbor（vmware/github） 
+- 无证书方案
+	- docker配置修改
+	<pre>grep '^[A-Z]' /etc/sysconfig/docker  
+	OPTIONS='--selinux-enabled --log-driver=journald'
+	DOCKER_CERT_PATH=/etc/docker
+	DOCKER_OPTS='--insecure-registry 192.168.5.120'
+	ADD_REGISTRY='--add-registry 192.168.5.120'
+	INSECURE_REGISTRY='--insecure-registry 192.168.5.120'
+	[root@kvmtest make]# systemctl restart docker </pre> 
+
+###附录 openssl资料
+[http://www.cnblogs.com/yjmyzz/p/openssl-tutorial.html](http://www.cnblogs.com/yjmyzz/p/openssl-tutorial.html)
 
