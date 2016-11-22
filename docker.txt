@@ -314,27 +314,27 @@
 		|-- app.py
 		`-- requirements.txt
 		---
-		\# cat Dockerfile 
-		\#Docker for python
+		# cat Dockerfile 
+		#Docker for python
 		FROM oldboy/python-ssh
 		
-		\#maintainer
+		#maintainer
 		MAINTAINER zhou
 		
-		\#python env
+		#python env
 		RUN useradd -s /sbin/nologin -M www
 		
 		ADD app.py /opt/app.py
 		ADD requirements /opt/
 		ADD app-supervisor.ini /etc/supervisord.d/ 
 		
-		\#upgrade pip
+		#upgrade pip
 		RUN /usr/bin/pip2.7 install -r /opt/requirements.txt
 		
-		\#port
+		#port
 		EXPOSE 22 5000
 		
-		\#CMD
+		#CMD
 		CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
 		
 		[root@cobbler shop-api]# vim app-supervisor.ini
