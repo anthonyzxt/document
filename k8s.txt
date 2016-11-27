@@ -1,0 +1,34 @@
+#kubernetes
+###架构
+1. 架构
+	1. master和node
+2. 运行的服务
+	1. master上的4个服务
+		- etcd
+			>是k-v存储系统，用于持久化存储集群中所有的资源对象
+		- API server
+			>提供了etcd的封装接口API，以REST的方式提供服务，是资源对象的唯一操作入口
+		- controller manager
+			>集群内部的管理控制中心，是实现k8s集群的故障检测和恢复的自动化工作
+		- scheduler
+			>负责Pod在集群节点中调度分配
+	2. Node的三个服务
+		- kubelet
+			>负责Node节点上Pod的创建、修改、监控、删除等生命周期管理。同时上报Node的状态信息到API Server
+		- Proxy
+			>实现了Service的代理及软件模式的负载均衡器
+		- Docker Daemon
+		   
+###安装
+
+###基本术语
+1. Node
+2. Pod
+3. Label
+3. Replication Controller
+4. Service
+5. Volume
+6. Namespace
+7. Anntation
+### 常用命令
+ 
