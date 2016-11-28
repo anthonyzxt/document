@@ -375,3 +375,23 @@
 ###附录 openssl资料
 [http://www.cnblogs.com/yjmyzz/p/openssl-tutorial.html](http://www.cnblogs.com/yjmyzz/p/openssl-tutorial.html)
 
+###ubuntu apt docker安装
+1. 升级source列表并保证https和ca证书成功安装
+	<pre># apt-get update
+	# apt-get install apt-transport-https ca-certificates</pre>
+2. 增加新的GPG密钥
+	`# apt-key adv --keyserver hkp://p80.pool.sks-keyservers.net:80 --recv-keys 58118E89F3A912897C070ADBF76221572C52609D`
+3. 新增或编辑source列表里的docker.list文件
+	<pre># vi /etc/apt/sources.list.d/docker.list
+	deb https://apt.dockerproject.org/repo ubuntu-xenial main</pre>
+4. 重新执行更新操作，并删除老的repo
+	<pre># apt-get purge lxc-docker //没有安装的话，跳过</pre>
+5. 查看是否有正确的可用版本
+	`# apt-cache policy docker-engine`
+6. 14.04版本以上开始docker推荐安装linux-image-extra
+	`# apt-get install linux-image-extra-$(uname -r)`
+7. 安装
+	<pre># apt-get update
+	# apt-get install docker-engine
+	# service docker start</pre>
+

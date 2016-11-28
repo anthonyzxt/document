@@ -1,0 +1,10 @@
+#ubuntu常规操作
+
+###apt源报错解决思路
+1. 修改DNS  
+	<pre>sudo vi /etc/resolvconf/resolv.conf.d/base
+	nameserver 8.8.8.8 nameserver 8.8.4.4
+	sudo resolvconf -u
+	apt-get update</pre>
+2. `sudo gedit /etc/apt/source.list`
+###

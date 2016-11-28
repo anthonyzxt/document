@@ -172,3 +172,13 @@ rewrite ^/images/(.*)_(\d+)x(\d+)\.(png|jpg|gif)$ /resizer/$1.$4?width=$2&height
  
 
 对形如/images/bla_500x400.jpg的文件请求，重写到/resizer/bla.jpg?width=500&height=400地址，并会继续尝试匹配location。
+
+例3 :
+	没有请求资源，跳转到login
+	<pre>server { 
+	rewrite ^$  http://域名/login/ permanent;
+	location / {
+	                proxy_pass   http://wjbx-test-web-merchant;
+	        }
+	}</pre>
+	
