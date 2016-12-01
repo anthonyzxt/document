@@ -371,7 +371,10 @@
 	ADD_REGISTRY='--add-registry 192.168.5.120'
 	INSECURE_REGISTRY='--insecure-registry 192.168.5.120'
 	[root@kvmtest make]# systemctl restart docker </pre> 
-
+- ubuntu http登陆设置
+	- 修改步骤
+		<pre>vi /lib/systemd/system/docker.service
+		ExecStart=/usr/bin/dockerd -H fd:// --insecure-registry 10.0.0.140:5000  #--insecure-registry 10.0.0.140:5000为新增部分</pre>
 ###附录 openssl资料
 [http://www.cnblogs.com/yjmyzz/p/openssl-tutorial.html](http://www.cnblogs.com/yjmyzz/p/openssl-tutorial.html)
 
