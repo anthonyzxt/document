@@ -1,0 +1,121 @@
+#ubunt 16 php7编译安装
+1. 依赖安装  
+	apt install  libghc-zlib-dev libxml2-dev libjpeg-dev libjpeg-turbo8-dev libiconv-hook-dev libfreetype6 libpng12-dev libgd-dev libcurl4-gnutls-dev  libxslt-dev libmcrypt-dev php7.0-mcrypt libmhash2 libssl-dev
+2. 参数  
+	<pre>./configure \
+	--prefix=/app/php7.1.3 \
+	--with-mysqli \
+	--with-pdo-mysql \
+	--with-iconv-dir=/usr/bin/iconv \
+	--with-freetype-dir \
+	--with-jpeg-dir \
+	--with-png-dir \
+	--with-zlib \
+	--with-libxml-dir=/usr \
+	--enable-xml \
+	--disable-rpath \
+	--enable-bcmath \
+	--enable-shmop \
+	--enable-sysvsem \
+	--enable-inline-optimization \
+	--with-curl \
+	--enable-mbregex \
+	--enable-fpm \
+	--enable-mbstring \
+	--with-gd \
+	--with-mcrypt \
+	--enable-gd-native-ttf \
+	--with-openssl \
+	--with-mhash \
+	--enable-pcntl \
+	--enable-sockets \
+	--with-xmlrpc \
+	--enable-zip \
+	--enable-soap \
+	--enable-short-tags \
+	--enable-static \
+	--with-xsl \
+	--with-fpm-user=www-data \
+	--with-fpm-group=www-data \
+	--enable-ftp \
+	--enable-opcache=no \
+	--enable-mysqlnd-compression-support</pre>
+3 bianyi2
+	<pre>--with-mysql-sock \
+--with-mysqli \
+--with-libxml-dir \
+--with-openssl \
+--with-mcrypt \
+--with-mhash \
+--with-pcre-regex \
+--with-zlib \
+--with-iconv \
+--with-bz2 \
+--with-curl \
+--with-cdb \
+--with-pcre-dir \
+--with-gd \
+--with-openssl-dir \
+--with-jpeg-dir \
+--with-png-dir \
+--with-zlib-dir \
+--with-freetype-dir \
+--with-gettext \
+--with-gmp \
+--with-mhash \
+--with-libmbfl \
+--with-onig \
+--with-pdo-mysql \
+--with-zlib-dir \
+--with-readline \
+--with-libxml-dir \
+--with-xsl \
+--with-pear \
+--enable-fpm  \
+--enable-soap \
+--enable-bcmath \
+--enable-calendar \
+--enable-dom \
+--enable-exif \
+--enable-fileinfo \
+--enable-filter \
+--enable-ftp \
+--enable-gd-native-ttf \
+--enable-gd-jis-conv \
+--enable-json \
+--enable-mbstring \
+--enable-mbregex \
+--enable-mbregex-backtrack \
+--enable-pdo \
+--enable-session \
+--enable-shmop \
+--enable-simplexml \
+--enable-sockets \
+--enable-sysvmsg \
+--enable-sysvsem \
+--enable-sysvshm \
+--enable-wddx \
+--enable-zip \
+--enable-mysqlnd-compression-support \
+--enable-intl</pre>
+
+#zabbix
+1. 依赖
+	<pre>apt-get install snmp libsnmp-dev snmpd libcurl4-openssl-dev fping unixodbc-dev libopenipmi-dev libdb-java-dev libmysqlclient-dev mysql-dev openjdk-8-jdk</pre>
+2. 编译参数
+	<pre>./configure --prefix=/app/zabbix-3.2.4 --enable-server --enable-agent --enable-java --enable-ipv6 --with-mysql  --with-net-snmp --with-libcurl --with-libxml2 --with-openipmi --with-unixodbc --with-openssl</pre>
+3. 创建数据库并导入数据
+	<pre>create database zabbix character set utf8 collate utf8_bin;
+	grant all on zabbix.* to zabbix@'127.0.0.1' identified by 'zabbix';     
+	flush privileges;
+	source /server/tools/zabbix/databases/schema.sql
+	source /server/tools/zabbix/databases/images.sql
+	source /server/tools/zabbix/databases/data.sql</pre>
+4. 创建站点目录
+	<pre>mkdir /var/www/html/zabbix
+	</pre>
+5.修改配置
+	sed -i 's#max_execution_time = 30#max_execution_time = 300#;s#max_input_time = 60#max_input_time = 300#;s#post_max_size = 8M#post_max_size = 16M#;s#;date.timezone =#date.timezone = Asia/Shanghai#' 
+
+#故障
+http://www.linuxidc.com/Linux/2017-02/140146.htm
