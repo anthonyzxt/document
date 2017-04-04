@@ -71,9 +71,26 @@
 	<pre>/usr/share/elasticsearch/bin/plugin install mobz/elasticsearch-head</pre>	
 - bigdesk插件
 	>性能监控，(es版本太高会有不支持的问题)
-	<pre>/usr/share/elasticsearch/bin/plugin install lukas-vlcek/bigdesk</pre>
+	<pre>/usr/share/elasticsearch/bin/plugin install lukas-vlcek/bigdesk
+	//源码包安装
+	wget https://github.com/lukas-vlcek/bigdesk/tarball/master
+	tar xf master
+	mkdir -p /usr/share/elasticsearch/plugins/bigdesk/_site
+	cp -a lukas-vlcek-bigdesk-4dd7545/* /usr/share/elasticsearch/plugins/bigdesk/_site
+	vi /usr/share/elasticsearch/plugins/bigdesk/plugin-descriptor.properties
+	description = bigdesk
+	version = 2.5.0
+	name = bigdesk
+	site = true
+	vi /usr/share/elasticsearch/plugins/bigdesk/_site/js/store/BigdeskStore.js
+	//将原142行屏蔽，新增此段代码
+	return (minor >= 0 && maintenance >= 0 && (build != 'Beta1' || build != 'Beta2'));	
+	systemctl start elasticsearch.service
+	/usr/share/elasticsearch/bin/plugin  list</pre>
 - kopf插件
 	<pre>/usr/share/elasticsearch/bin/plugin install lmenezes/elasticsearch-kopf</pre>
+- license插件
+	<pre>/usr/share/elasticsearch/bin/plugin install license</pre>
 - 访问方式
 	http://IP:9200/_plugin/插件名称
 - 测试
@@ -96,7 +113,7 @@
 	[https://www.elastic.co/guide/en/elasticsearch/reference/current/cat.html](https://www.elastic.co/guide/en/elasticsearch/reference/current/cat.html)
 - 环境搭建注意事项
 	1. 硬件要求
-	2. 系统要求：最大文件数（unlimt -SHn 65535）
+	2. 系统要求：最大文件数（ulimit -SHn 65535）
 ###Logstash
 - 角色：收集者  
 - 主要概念：INPUT FILTER OUTPUT   
@@ -145,7 +162,7 @@
 		    path => ...
 		}</pre>
 	- path
-		>Value type is array,The path(s) to the file(s) to use as an input. You can use filename patterns here, such as /var/log/*.log. If you use a pattern like /var/log/**/*.log, a recursive search of /var/log will be done for all *.log files. Paths must be absolute and cannot be relative.
+		>Value type is array,The path(s) to the file(s) to use as an input. You can use filename patterns here, such as /var/log/*.log. If you use a pattern like /var/log/**/\*.log, a recursive search of /var/log will be done for all *.log files. Paths must be absolute and cannot be relative.
 	- sincedb
 		>keeps track of the current position of monitored log files,The default will write sincedb files to <path.data>/plugins/inputs/file。作于相当于mysql主从中的pos点位置。
 	- start_position
