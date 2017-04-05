@@ -109,35 +109,34 @@
 	>configuration->hosts->选择主机->添加JMX监控—>模板选择通用模板即可 
  
 ##zabbix-nginx监控##
-流程：  
-	1. 确实nginx服务开启  	
+流程：   
+	1. 确实nginx服务开启  
 	2. 编写脚本进行数据采集      
-		2.1采集脚本
-		<pre>
-		#!/bin/bash
-		tcp_status_fun(){
-			TCP_STAT=$1
-			#netstat -n | awk '/^tcp/ {++state[$NF]} END {for(key in state) print key,state[key]}' > /tmp/netstat.tmp
-			ss -ant | awk 'NR>1 {++s[$1]} END {for(k in s) print k,s[k]}' > /tmp/netstat.tmp
-			TCP_STAT_VALUE=$(grep "$TCP_STAT" /tmp/netstat.tmp | cut -d ' ' -f2)
-			if [ -z $TCP_STAT_VALUE ];then
-				TCP_STAT_VALUE=0
-			fi
-			echo $TCP_STAT_VALUE
-			}
-		nginx_status_fun(){
-			NGINX_PORT=$1
-			NGINX_COMMAND=$2
-			nginx_active(){
-		        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Active' | awk '{print $NF}'
-		        }
-		nginx_reading(){
-		    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Reading' | awk '{print $2}'
-		       }
-		nginx_writing(){
-		    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Writing' | awk '{print $4}'
-		    }
-		nginx_waiting(){
+	2.1采集脚本
+	<pre>#!/bin/bash
+	tcp_status_fun(){
+		TCP_STAT=$1
+		#netstat -n | awk '/^tcp/ {++state[$NF]} END {for(key in state) print key,state[key]}' > /tmp/netstat.tmp
+		ss -ant | awk 'NR>1 {++s[$1]} END {for(k in s) print k,s[k]}' > /tmp/netstat.tmp
+		TCP_STAT_VALUE=$(grep "$TCP_STAT" /tmp/netstat.tmp | cut -d ' ' -f2)
+		if [ -z $TCP_STAT_VALUE ];then
+			TCP_STAT_VALUE=0
+		fi
+		echo $TCP_STAT_VALUE
+		}
+	nginx_status_fun(){
+		NGINX_PORT=$1
+		NGINX_COMMAND=$2
+		nginx_active(){
+	        /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Active' | awk '{print $NF}'
+	        }
+	nginx_reading(){
+	    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Reading' | awk '{print $2}'
+	       }
+	nginx_writing(){
+	    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Writing' | awk '{print $4}'
+	    }
+	nginx_waiting(){
 		    /usr/bin/curl "http://127.0.0.1:"$NGINX_PORT"/nginx_status/" 2>/dev/null| grep 'Waiting' | awk '{print $6}'
 		    }
 		nginx_accepts(){
@@ -205,10 +204,10 @@
 		}
 		main $1 $2 $3</pre>
 		
-		2.2 修改agentd文件：
+	2.2 修改agentd文件：
 		<pre>vi /etc/zabbix/zabbix_agentd.conf
-	Include=/etc/zabbix/zabbix_agentd.d/*.conf</pre>
-		2.3 重启服务
+		Include=/etc/zabbix/zabbix_agentd.d/*.conf</pre>
+	2.3 重启服务
 		Nginx修改：
 		<pre>location /nginx_status {
         	stub_status on;
@@ -216,6 +215,7 @@
         	allow 127.0.0.1;
         	deny all;
         	}</pre>
+
 3. 这是用户自定义参数  
 	`UserParameter=linux_status[*],/etc/zabbix/zabbix_agentd.d/zabbix_linux_plugin.sh "$1" "$2" "$3"`
 4. 重启zabbix-agent  

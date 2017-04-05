@@ -8,8 +8,8 @@ CentOS Linux release 7.2.1511 (Core)
 3.10.0-327.el7.x86_64
 
 * 关闭防火墙和selinux
-   >\#systemctl stop firewalld  
-   >\#getenforce   
+   >\# systemctl stop firewalld  
+   >\# getenforce   
 Disabled   
 /* 如果selinux为enabled，请执行以下命令：  
 	`sed -i s#SELINUX=enforcing#SELINUX=disabled#g /etc/selinux/config`  

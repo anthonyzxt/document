@@ -1,0 +1,192 @@
+#K8s 1.5.1 on Ubuntu 16.04
+---
+##服务器设置
+|IP			|hostname	|用途  
+10.3.2.20	master		k8s-master Glusterfs nginx  
+10.3.2.21	node1		k8s-node   Glusterfs  
+10.3.2.22	node2		etcd       k8s-node  
+10.3.2.23	node3		etcd       k8s-node  
+10.3.2.24	node4		etcd       k8s-node  
+10.3.2.25	node5
+##关闭防火墙
+	systemctl stop ufw	
+	systemctl disable ufw
+
+###1. 安装需要用的的images可以指定从国内的阿里云下载，在每台服务器上都执行以下设置
+
+	export KUBE_REPO_PREFIX=registry.cn-hangzhou.aliyuncs.com/google-containers \
+	KUBE_HYPERKUBE_IMAGE=registry.cn-hangzhou.aliyuncs.com/google-containers/hyperkube-amd64:v1.5.1 \
+	KUBE_DISCOVERY_IMAGE=registry.cn-hangzhou.aliyuncs.com/google-containers/kube-discovery-amd64:1.0 \
+	KUBE_ETCD_IMAGE=registry.cn-hangzhou.aliyuncs.com/google-containers/etcd-amd64:3.0.4
+
+
+###2.安装etcd集群
+	//在node2、node3、node4上安装etcd
+	apt-get install etcd
+	//分别建立存放ectd数据的目录
+	mkdir /data/etcd -p
+	chown -R etcd.etcd /data/etcd/
+	//修改node2上的etcd参数: vi /etc/default/etcd
+	root@node2:/server/tools# grep '^E.*' /etc/default/etcd 
+	ETCD_NAME=etcd1
+	ETCD_DATA_DIR="/data/etcd/etcd1.etcd"
+	ETCD_LISTEN_PEER_URLS="http://10.3.2.22:2380"
+	ETCD_LISTEN_CLIENT_URLS="http://10.3.2.22:2379,http://127.0.0.1:2379"
+	ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.3.2.22:2380"
+	ETCD_INITIAL_CLUSTER="etcd1=http://10.3.2.22:2380,etcd2=http://10.3.2.23:2380,etcd3=http://10.3.2.24:2380"
+	ETCD_ADVERTISE_CLIENT_URLS="http://10.3.2.22:2379"
+	// node3的etcd配置
+	root@node3:/server/tools# grep '^E.*' /etc/default/etcd 
+	ETCD_NAME="etcd2"
+	ETCD_DATA_DIR="/data/etcd/etcd2"
+	ETCD_LISTEN_PEER_URLS="http://10.3.2.23:2380"
+	ETCD_LISTEN_CLIENT_URLS="http://10.3.2.23:2379,http://127.0.0.1:4001"
+	ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.3.2.23:2380"
+	ETCD_INITIAL_CLUSTER="etcd1=http://10.3.2.22:2380,etcd2=http://10.3.2.23:2380,etcd3=http://10.3.2.24:2380"
+	ETCD_ADVERTISE_CLIENT_URLS="http://10.3.2.23:2379"
+	// node4的etcd配置
+	root@node4:/server/tools# grep '^E.*' /etc/default/etcd
+	ETCD_NAME="etcd3"
+	ETCD_DATA_DIR="/data/etcd/etcd3"
+	ETCD_LISTEN_PEER_URLS="http://10.3.2.24:2380"
+	ETCD_LISTEN_CLIENT_URLS="http://10.3.2.24:2379,http://127.0.0.1:4001"
+	ETCD_INITIAL_ADVERTISE_PEER_URLS="http://10.3.2.24:2380"
+	ETCD_INITIAL_CLUSTER="etcd1=http://10.3.2.22:2380,etcd2=http://10.3.2.23:2380,etcd3=http://10.3.2.24:2380"
+	ETCD_ADVERTISE_CLIENT_URLS="http://10.3.2.24:2379"
+	//依次启动etcd服务
+	systemctl start etcd
+	systemctl enable etcd
+	//检查etcd集群是否健康
+	# etcdctl cluster-health
+	member 8ab407ded59e1147 is healthy: got healthy result from http://10.3.2.23:2379
+	member b37edcdfbd0c4ea1 is healthy: got healthy result from http://10.3.2.22:2379
+	member d9e0812fa39099d3 is healthy: got healthy result from http://10.3.2.24:2379
+	cluster is healthy
+###3.安装kubectl kubeadm kube-proxy kubelet等
+>这些插件想办法翻墙下载安装
+###4. 在启动kubelet之前我们需要先修改`vi /etc/systemd/system/kubelet.service.d/10-kubeadm.conf`,为kubelet添加一个额外的参数,增加以下内容：
+	// 这样kubelet就不会在启动pod的时候去墙外的k8s仓库拉取pause-amd64:3.0镜像了
+	--pod-infra-container-image=registry.cn-hangzhou.aliyuncs.com/google-containers/pause-amd64:3.0
+	//重启kubulet,使修改生效
+	systemctl enable kubelet && systemctl start kubelet
+###5. 使用kubeadm安装k8s集群
+	//由于我们手动安装了etcd集群，所有要加`--skip-preflight-checks`参数
+	kubeadm init --api-advertise-addresses=10.3.2.20 \
+	--external-etcd-endpoints=http://10.3.2.22:2379,http://10.3.2.23:2379,http://10.3.2.24:2379 \
+	--use-kubernetes-version v1.5.1 \
+	--pod-network-cidr 10.244.0.0/16 \
+	--skip-preflight-checks
+	//不出意外结束后，保存好最重要的token，此token不可重现
+	kubeadm join --token=b3fc7e.f6c785229a7ed7fc 10.3.2.20
+###6. 配置flannel网络
+	//预先下载好quay.io/coreos/flannel:v0.7.0-amd64导入系统。
+	//https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml
+	//docker load --input flannel.tar
+    //flannel网络配置文件，注意是yaml格式：
+	-------
+	root@master:~# cat flannel7.0.yml 
+	---
+	apiVersion: v1
+	kind: ServiceAccount
+	metadata:
+	  name: flannel
+	  namespace: kube-system
+	---
+	kind: ConfigMap
+	apiVersion: v1
+	metadata:
+	  name: kube-flannel-cfg
+	  namespace: kube-system
+	  labels:
+	    tier: node
+	    app: flannel
+	data:
+	  cni-conf.json: |
+	    {
+	      "name": "cbr0",
+	      "type": "flannel",
+	      "delegate": {
+	        "isDefaultGateway": true
+	      }
+	    }
+	  net-conf.json: |
+	    {
+	      "Network": "10.244.0.0/16",
+	      "Backend": {
+	        "Type": "vxlan"
+	      }
+	    }
+	---
+	apiVersion: extensions/v1beta1
+	kind: DaemonSet
+	metadata:
+	  name: kube-flannel-ds
+	  namespace: kube-system
+	  labels:
+	    tier: node
+	    app: flannel
+	spec:
+	  template:
+	    metadata:
+	      labels:
+	        tier: node
+	        app: flannel
+	    spec:
+	      hostNetwork: true
+	      nodeSelector:
+	        beta.kubernetes.io/arch: amd64
+	      serviceAccountName: flannel
+	      containers:
+	      - name: kube-flannel
+	        image: quay.io/coreos/flannel:v0.7.0-amd64
+	        command: [ "/opt/bin/flanneld", "--ip-masq", "--kube-subnet-mgr" ]
+	        securityContext:
+	          privileged: true
+	        env:
+	        - name: POD_NAME
+	          valueFrom:
+	            fieldRef:
+	              fieldPath: metadata.name
+	        - name: POD_NAMESPACE
+	          valueFrom:
+	            fieldRef:
+	              fieldPath: metadata.namespace
+	        volumeMounts:
+	        - name: run
+	          mountPath: /run
+	        - name: flannel-cfg
+	          mountPath: /etc/kube-flannel/
+	      - name: install-cni
+	        image: quay.io/coreos/flannel:v0.7.0-amd64
+	        command: [ "/bin/sh", "-c", "set -e -x; cp -f /etc/kube-flannel/cni-conf.json /etc/cni/net.d/10-flannel.conf; while true; do sleep 3600; done" ]
+	        volumeMounts:
+	        - name: cni
+	          mountPath: /etc/cni/net.d
+	        - name: flannel-cfg
+	          mountPath: /etc/kube-flannel/
+	      volumes:
+	        - name: run
+	          hostPath:
+	            path: /run
+	        - name: cni
+	          hostPath:
+	            path: /etc/cni/net.d
+	        - name: flannel-cfg
+	          configMap:
+	            name: kube-flannel-cfg
+###6. 节点加入
+	//执行前边1中的变量
+	//导入flannel和pause-amd64镜像，镜像名称如下：
+	gcr.io/google_containers/pause-amd64:3.0
+	quay.io/coreos/flannel:v0.7.0-amd64
+	//检查防护墙是否关闭，以防加入失败
+	systemctl status ufw
+	//安装kubelet kubeadm等命令
+	
+	//执行master提供的token加入集群，由于我们手动安装了etcd集群，所有要加`--skip-preflight-checks`参数
+	kubeadm join --token=b3fc7e.f6c785229a7ed7fc 10.3.2.20 --skip-preflight-checks
+	//节点加入后，依次检查pod是否正常启动，节点是否加入
+	root@master:~# kubectl get nodes
+	root@master:~# kubectl  get po -n kube-system
+	** 每当加入一个节点后，依次检查服务是否正常启动**
+###7. dashboard配置
