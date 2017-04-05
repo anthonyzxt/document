@@ -27,3 +27,98 @@ deb http://mirrors.aliyun.com/ubuntu/ xenial-security main restricted
 deb-src http://mirrors.aliyun.com/ubuntu/ xenial-security main restricted multiverse universe #Added by software-properties
 deb http://mirrors.aliyun.com/ubuntu/ xenial-security universe
 deb http://mirrors.aliyun.com/ubuntu/ xenial-security multiverse</pre>
+
+### 使用外部发送邮件设置
+1. for CentOS 6.5  
+	<pre>yum -y install mailx`  
+	vi /etc/mail.rc
+	在文件的末行添加以下5行
+	set from=yuorname@139.com
+	set smtp=smtp.139.com
+	set smtp-auth-user=yourname
+	set smtp-auth-password=yourpassword
+	set smtp-auth=login</pre>
+	不用重启，立刻生效
+	说明：  
+	from: 发送的邮件地址  
+	smtp: 发生的外部smtp服务器的地址  
+	smtp-auth-user: 外部smtp服务器认证的用户名  
+	smtp-auth-password: 外部smtp服务器认证的用户密码  
+	smtp-auth: 邮件认证的方式 
+
+2. for Ubuntu 14.04
+	<pre># aptitude -y install mailutils ssmtp
+	vi /etc/ssmtp/ssmtp.conf
+	root=yourname@139.com
+	mailhub=smtp.139.com
+	AuthUser=yourname
+	AuthPass=your-password
+	rewriteDomain=139.com
+	hostname=smtp.139.com
+	vi /etc/ssmtp/revaliases
+	root:yourname@139.com:smtp.139.com
+	echo "test mail" | mail -s "test mail" email-you-want-to-send</pre>
+##关闭网卡ipv6显示的方法
+* 在`/etc/sysctl.conf`中加入以下几行
+	<pre>net.ipv6.conf.all.disable_ipv6 = 1
+	net.ipv6.conf.default.disable_ipv6 = 1
+	net.ipv6.conf.lo.disable_ipv6 = 1
+	net.ipv6.conf.**eth0**.disable_ipv6 = 1 //其中eth0为网卡的显示名称,看网卡实际数量添加此行
+	** 使配置生效
+	sudo sysctl -p</pre>
+## mysql5.7.17编译安装
+1. 安装需要用到的插件  
+	`apt install libncurses-dev libaio-dev cmake gcc g++ -y` 
+
+###二进制安装
+1. 下载mysql5.5.54二进制安装包：  
+	[http://mirrors.sohu.com/mysql/MySQL-5.5/mysql-5.5.54-linux2.6-x86_64.tar.gz](http://mirrors.sohu.com/mysql/MySQL-5.5/mysql-5.5.54-linux2.6-x86_64.tar.gz)
+2. 安装前的准备工作，创建目录及一些依赖插件
+	<pre># mkdir /application 
+	//应用安装目录
+	# mkdir -p /server/{tools,scripts}
+	//安装文件保存位置
+	# apt install libncurses5-dev libaio-dev cmake gcc g++ -y
+    # groupadd mysql
+	# useradd -M -s /usr/sbin/nologin -g mysql mysql
+	//依赖安装及mysql用户</pre>
+3. mysql安装
+	<pre># cd /server/tools
+	# tar xf mysql-5.5.54-linux2.6-x86_64.tar.gz
+	# mv mysql-5.5.54-linux2.6-x86_64 /application/mysql-5.5.54
+	# ln -s /application/mysql-5.5.54/ /application/mysql
+	# cd /application/mysql/
+	//初始化数据库
+	# ./scripts/mysql_install_db --user=mysql --basedir=/application/mysql --datadir=/application/mysql/data/
+	# chown -R mysql:mysql /application/mysql
+	# cp /application/mysql/support-files/mysql.server /etc/init.d/mysql
+	//修改这两行；
+	# vi /etc/init.d/mysql
+	basedir=/application/mysql/
+	datadir=/application/mysql/data
+	# sed -n '\/application/p' /etc/init.d/mysql
+	# sed -i s#/usr/local#/application#g /application/mysql/bin/mysqld_safe
+	//加入系统管理并启动
+	# systemctl enable mysql
+	# systemctl start mysql
+	</pre>
+##主从复制
+1.确保server-id没有重复和从库关掉binlog功能
+	grep -E 'server-id|log-bin' /etc/my.cnf
+##apt相关资料
+
+##dpkg相关资料
+
+##java的安装
+	sudo add-apt-repository ppa:webupd8team/java
+	sudo apt-get update
+	sudo apt-get install oracle-java8-installer
+
+##ubuntu 16.04时区修改命令
+	dpkg-reconfigure tzdata
+
+##改变网卡名显示
+	sudo vi /etc/default/grub
+	找到GRUB_CMDLINE_LINUX=””
+	改为GRUB_CMDLINE_LINUX=”net.ifnames=0 biosdevname=0”
+	然后sudo grub-mkconfig -o /boot/grub/grub.cfg 
